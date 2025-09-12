@@ -1,5 +1,5 @@
 import { View } from "react-native";
-import CreateGroupScreen from "../src/features/chat/CreateGroupScreen";
+import CreateGroupScreen from "../src/features/chat/createGroupScreen/CreateGroupScreen";
 
 export default function Page() {
   return (

@@ -3,7 +3,7 @@ import { View, Text, FlatList, Image, TouchableOpacity, TextInput } from "react-
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
-import styles from "./ChatScreen.styles";
+import styles from "../chatscreen/ChatScreen.styles";
 import { router } from "expo-router"; 
 
 const groups = [
@@ -17,21 +17,22 @@ function ChatScreen() {
   
 
   const renderItem = ({ item }) => (
-    <TouchableOpacity style={styles.item}>
-      <Image source={{ uri: item.avatar }} style={styles.avatar} />
-      <View style={styles.textContainer}>
-        <Text style={styles.groupName}>{item.name}</Text>
-        <Text style={styles.lastMessage}>{item.lastMessage}</Text>
-      </View>
-      <Text style={styles.time}>{item.time}</Text>
-    </TouchableOpacity>
-  );
+  <TouchableOpacity 
+    style={styles.item} 
+    onPress={() => router.push(`/chat/${item.id}`)} 
+  >
+    <Image source={{ uri: item.avatar }} style={styles.avatar} />
+    <View style={styles.textContainer}>
+      <Text style={styles.groupName}>{item.name}</Text>
+      <Text style={styles.lastMessage}>{item.lastMessage}</Text>
+    </View>
+    <Text style={styles.time}>{item.time}</Text>
+  </TouchableOpacity>
+);
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header xanh lá */}
       <View style={styles.header}>
-        {/* Thanh tìm kiếm */}
         <View style={styles.searchBar}>
           <Ionicons name="search-outline" size={18} color="#fff" style={{ marginLeft: 6 }} />
           <TextInput
@@ -41,7 +42,6 @@ function ChatScreen() {
           />
         </View>
 
-        {/* Nút + */}
         <TouchableOpacity
   style={styles.addButton}
   onPress={() => router.push("/create-group")}   
@@ -50,7 +50,6 @@ function ChatScreen() {
 </TouchableOpacity>
       </View>
 
-      {/* Danh sách nhóm */}
       <FlatList
         data={groups}
         keyExtractor={(item) => item.id}
