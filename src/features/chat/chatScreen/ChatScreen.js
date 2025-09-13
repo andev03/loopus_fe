@@ -3,7 +3,7 @@ import { View, Text, FlatList, Image, TouchableOpacity, TextInput } from "react-
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
-import styles from "../chatscreen/ChatScreen.styles";
+import styles from "../chatScreen/ChatScreen.styles";
 import { router } from "expo-router"; 
 
 const groups = [

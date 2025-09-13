@@ -1,52 +1,76 @@
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  FlatList, 
-  TextInput, 
-  KeyboardAvoidingView, 
-  Platform, 
-  StatusBar 
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  FlatList,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "react-native";
-
-const messages = [
-  { 
-    id: "1", 
-    sender: "Đặng Lê Anh", 
-    text: "Hôm trước mình ăn bao nhiêu vậy?", 
-    type: "text",
-    time: "9:41",
-    avatar: "https://randomuser.me/api/portraits/men/1.jpg"
-  },
-  { 
-    id: "2", 
-    sender: "Đặng Lê Anh", 
-    text: "Ai là người ứng tiền vậy?", 
-    type: "text",
-    time: "9:41",
-    avatar: "https://randomuser.me/api/portraits/men/1.jpg"
-  },
-  { 
-    id: "3", 
-    sender: "Bạn", 
-    type: "event",
-    event: {
-      title: "Họp bàn chia tiền",
-      date: "Thứ 7, 12 tháng 7",
-      time: "Lúc 15:30",
-      day: "THG 7",
-      dateNumber: "12"
-    }
-  },
-];
+import { useState, useEffect } from "react";
+import styles from "./ChatDetailScreen.styles";
 
 export default function ChatDetailScreen() {
-  const { id } = useLocalSearchParams();
+  const { id, poll } = useLocalSearchParams();
+  const [showMenu, setShowMenu] = useState(false);
+  const [messages, setMessages] = useState([
+    {
+      id: "1",
+      sender: "Đặng Lê Anh",
+      text: "Hôm trước mình ăn bao nhiêu vậy?",
+      type: "text",
+      time: "9:41",
+      avatar: "https://randomuser.me/api/portraits/men/1.jpg",
+    },
+    {
+      id: "2",
+      sender: "Đặng Lê Anh",
+      text: "Ai là người ứng tiền vậy?",
+      type: "text",
+      time: "9:41",
+      avatar: "https://randomuser.me/api/portraits/men/1.jpg",
+    },
+  ]);
+
+  // 👉 Nhận poll trả về từ CreatePollScreen
+  useEffect(() => {
+    if (poll) {
+      try {
+        const parsed = JSON.parse(poll);
+        const newPoll = {
+          id: Date.now().toString(),
+          type: "poll",
+          sender: "Bạn",
+          poll: parsed,
+        };
+        setMessages((prev) => [...prev, newPoll]);
+      } catch (e) {
+        console.log("Poll parse error:", e);
+      }
+    }
+  }, [poll]);
+
+  // 👉 Hàm xử lý khi bấm "Chia tiền"
+  const handleAddEvent = () => {
+    const newEvent = {
+      id: Date.now().toString(),
+      sender: "Bạn",
+      type: "event",
+      event: {
+        title: "Họp bàn chia tiền",
+        date: "Thứ 7, 12 tháng 7",
+        time: "Lúc 15:30",
+        day: "THG 7",
+        dateNumber: "12",
+      },
+    };
+    setMessages((prev) => [...prev, newEvent]);
+    setShowMenu(false);
+  };
 
   const renderMessage = ({ item }) => {
     if (item.type === "text") {
@@ -73,12 +97,16 @@ export default function ChatDetailScreen() {
           <View style={styles.eventBody}>
             <View style={styles.eventDate}>
               <Text style={styles.eventDay}>{item.event.day}</Text>
-              <Text style={styles.eventDateNumber}>{item.event.dateNumber}</Text>
+              <Text style={styles.eventDateNumber}>
+                {item.event.dateNumber}
+              </Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.eventTitle}>{item.event.title}</Text>
               <Text style={styles.eventTime}>
-                {item.event.date}{"\n"}{item.event.time}
+                {item.event.date}
+                {"\n"}
+                {item.event.time}
               </Text>
             </View>
           </View>
@@ -89,18 +117,46 @@ export default function ChatDetailScreen() {
         </View>
       );
     }
+
+    if (item.type === "poll") {
+  return (
+    <View style={styles.pollCard}>
+      <View style={styles.pollHeaderRow}>
+        <Ionicons name="person-circle" size={16} color="#6b6b6b" />
+        <Text style={styles.pollHeader}>Bạn đã tạo lượt bình chọn</Text>
+      </View>
+
+      <Text style={styles.pollTitle} numberOfLines={2}>
+        {item.poll.title}
+      </Text>
+
+      <View style={styles.pollOptions}>
+        {item.poll.options.map((opt, idx) => (
+          <View key={idx} style={styles.pollOption}>
+            
+            <View style={styles.pollRadioOuter}>
+              <View style={styles.pollRadioInner} />
+            </View>
+
+            <Text style={styles.pollOptionText}>{opt}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
   };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-  onPress={() => router.push("/chat")} 
-  style={styles.backButton}
->
-  <Ionicons name="arrow-back" size={24} color="#fff" />
-</TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => router.push("/chat")}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
         <Text style={styles.title}>Nhóm Cơm Tấm</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.headerIcon}>
@@ -109,14 +165,16 @@ export default function ChatDetailScreen() {
           <TouchableOpacity style={styles.headerIcon}>
             <Ionicons name="videocam" size={24} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon}>
+          <TouchableOpacity
+            style={styles.headerIcon}
+            onPress={() => router.push("/chat/group-info")}
+          >
             <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
 
-     
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.flex1}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
@@ -128,15 +186,99 @@ export default function ChatDetailScreen() {
           contentContainerStyle={styles.messagesContainer}
         />
 
-    
+        {/* Menu xổ xuống */}
+        {showMenu && (
+          <View style={styles.menuContainer}>
+            <TouchableOpacity style={styles.menuRow}>
+              <Ionicons
+                name="camera"
+                size={22}
+                color="#2ECC71"
+                style={styles.menuIcon}
+              />
+              <Text style={styles.menuText}>Máy ảnh</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuRow}>
+              <Ionicons
+                name="image"
+                size={22}
+                color="#2ECC71"
+                style={styles.menuIcon}
+              />
+              <Text style={styles.menuText}>Ảnh</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuRow}>
+              <Ionicons
+                name="mic"
+                size={22}
+                color="#2ECC71"
+                style={styles.menuIcon}
+              />
+              <Text style={styles.menuText}>Ghi âm</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => {
+                setShowMenu(false);
+                router.push("/chat/group-calendar");
+              }}
+            >
+              <Ionicons
+                name="calendar"
+                size={22}
+                color="#2ECC71"
+                style={styles.menuIcon}
+              />
+              <Text style={styles.menuText}>Lịch nhóm</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => {
+                setShowMenu(false);
+                router.push("/chat/create-poll");
+              }}
+            >
+              <Ionicons
+                name="list"
+                size={22}
+                color="#2ECC71"
+                style={styles.menuIcon}
+              />
+              <Text style={styles.menuText}>Bình chọn</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuRow} onPress={handleAddEvent}>
+              <Ionicons
+                name="cash"
+                size={22}
+                color="#2ECC71"
+                style={styles.menuIcon}
+              />
+              <Text style={styles.menuText}>Chia tiền</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuRow}>
+              <Ionicons
+                name="alarm"
+                size={22}
+                color="#2ECC71"
+                style={styles.menuIcon}
+              />
+              <Text style={styles.menuText}>Nhắc nợ</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Ô nhập tin nhắn */}
         <SafeAreaView edges={["bottom"]} style={{ backgroundColor: "#fff" }}>
           <View style={styles.inputContainer}>
-            <TouchableOpacity style={styles.attachButton}>
-              <Ionicons name="attach" size={24} color="#666" />
+            <TouchableOpacity
+              style={styles.plusButton}
+              onPress={() => setShowMenu(!showMenu)}
+            >
+              <Ionicons name="add" size={24} color="#333" />
             </TouchableOpacity>
-            <TextInput 
-              placeholder="Gửi tin nhắn" 
-              style={styles.input} 
+            <TextInput
+              placeholder="Gửi tin nhắn"
+              style={styles.input}
               placeholderTextColor="#999"
               multiline
             />
@@ -149,106 +291,3 @@ export default function ChatDetailScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#f5f5f5" },
-  flex1: { flex: 1 },
-
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#2ECC71",
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 12,
-  },
-  backButton: { padding: 4 },
-  title: { 
-    color: "#fff", 
-    fontSize: 18, 
-    fontWeight: "bold", 
-    flex: 1,
-    marginLeft: 12,
-  },
-  headerActions: { flexDirection: "row" },
-  headerIcon: { padding: 4, marginLeft: 8 },
-
-
-  messagesContainer: { padding: 12 },
-  messageRow: { flexDirection: "row", marginBottom: 12, alignItems: "flex-start" },
-  avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 10 },
-  bubbleContainer: { flex: 1 },
-  bubble: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 10,
-    maxWidth: "80%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
-  sender: { fontWeight: "bold", fontSize: 12, color: "#2ECC71" },
-  time: { fontSize: 11, color: "#999" },
-  messageText: { fontSize: 14, lineHeight: 20, color: "#333" },
-
-
-  eventCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 12,
-    marginVertical: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  eventHeader: { fontWeight: "bold", marginBottom: 8, textAlign: "center", color: "#2ECC71" },
-  eventBody: { flexDirection: "row", marginBottom: 8 },
-  eventDate: {
-    alignItems: "center", 
-    marginRight: 12,
-    backgroundColor: "#f0f8ff",
-    padding: 8,
-    borderRadius: 8,
-  },
-  eventDay: { color: "#2ECC71", fontWeight: "bold", fontSize: 12 },
-  eventDateNumber: { fontSize: 22, fontWeight: "bold", color: "#333" },
-  eventTitle: { fontSize: 16, fontWeight: "600", marginBottom: 4 },
-  eventTime: { color: "#555", fontSize: 13 },
-  eventActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-  },
-  eventReject: { color: "#777", fontSize: 14 },
-  eventAccept: { color: "#2ECC71", fontWeight: "600", fontSize: 14 },
-
-
-  inputContainer: { 
-    flexDirection: "row", 
-    alignItems: "flex-end",
-    padding: 12, 
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-  },
-  attachButton: { marginRight: 12, padding: 8 },
-  input: { 
-    flex: 1, 
-    backgroundColor: "#f1f1f1", 
-    borderRadius: 20, 
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 14,
-    maxHeight: 100,
-    marginRight: 12,
-  },
-  sendButton: { padding: 8 },
-});
