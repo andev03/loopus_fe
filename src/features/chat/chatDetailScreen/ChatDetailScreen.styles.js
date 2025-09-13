@@ -1,0 +1,191 @@
+import { StyleSheet,Platform,StatusBar} from "react-native";
+
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: "#f5f5f5" },
+  flex1: { flex: 1 },
+
+
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#2ECC71",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 12,
+  },
+  backButton: { padding: 4 },
+  title: { 
+    color: "#fff", 
+    fontSize: 18, 
+    fontWeight: "bold", 
+    flex: 1,
+    marginLeft: 12,
+  },
+  headerActions: { flexDirection: "row" },
+  headerIcon: { padding: 4, marginLeft: 8 },
+
+
+  messagesContainer: { padding: 12 },
+  messageRow: { flexDirection: "row", marginBottom: 12, alignItems: "flex-start" },
+  avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 10 },
+  bubbleContainer: { flex: 1 },
+  bubble: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 10,
+    maxWidth: "80%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  headerRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
+  sender: { fontWeight: "bold", fontSize: 12, color: "#2ECC71" },
+  time: { fontSize: 11, color: "#999" },
+  messageText: { fontSize: 14, lineHeight: 20, color: "#333" },
+
+
+  eventCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 12,
+    marginVertical: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  eventHeader: { fontWeight: "bold", marginBottom: 8, textAlign: "center", color: "#2ECC71" },
+  eventBody: { flexDirection: "row", marginBottom: 8 },
+  eventDate: {
+    alignItems: "center", 
+    marginRight: 12,
+    backgroundColor: "#f0f8ff",
+    padding: 8,
+    borderRadius: 8,
+  },
+  eventDay: { color: "#2ECC71", fontWeight: "bold", fontSize: 12 },
+  eventDateNumber: { fontSize: 22, fontWeight: "bold", color: "#333" },
+  eventTitle: { fontSize: 16, fontWeight: "600", marginBottom: 4 },
+  eventTime: { color: "#555", fontSize: 13 },
+  eventActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
+  },
+  eventReject: { color: "#777", fontSize: 14 },
+  eventAccept: { color: "#2ECC71", fontWeight: "600", fontSize: 14 },
+
+
+  inputContainer: { 
+    flexDirection: "row", 
+    alignItems: "flex-end",
+    padding: 12, 
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
+  },
+  attachButton: { marginRight: 12, padding: 8 },
+  input: { 
+    flex: 1, 
+    backgroundColor: "#f1f1f1", 
+    borderRadius: 20, 
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 14,
+    maxHeight: 100,
+    marginRight: 12,
+  },
+  sendButton: { padding: 8 },
+  plusButton: {
+  width: 36,
+  height: 36,
+  borderRadius: 18,
+  backgroundColor: "#f2f2f2",
+  alignItems: "center",
+  justifyContent: "center",
+  marginRight: 8,
+},
+menuContainer: {
+  backgroundColor: "#fff",
+  borderTopWidth: 1,
+  borderColor: "#eee",
+  paddingVertical: 8,
+},
+menuRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  paddingVertical: 10,
+  paddingHorizontal: 16,
+},
+menuIcon: {
+  marginRight: 12,
+},
+menuText: {
+  fontSize: 15,
+  color: "#333",
+},
+pollCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 12,
+    maxWidth: 280,        
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+    marginVertical: 8,
+  },
+  pollHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  pollHeader: {
+    marginLeft: 8,
+    fontSize: 12,
+    color: "#6b6b6b",
+  },
+  pollTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#222",
+    marginBottom: 8,
+  },
+  pollOptions: {
+    marginTop: 4,
+  },
+  pollOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+  },
+  pollRadioOuter: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: "#d3d3d3",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  pollRadioInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#fff", 
+  },
+  pollOptionText: {
+    fontSize: 13,
+    color: "#333",
+  },
+
+});
+
+export default styles;
