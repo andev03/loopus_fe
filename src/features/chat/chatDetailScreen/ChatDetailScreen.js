@@ -244,6 +244,21 @@ export default function ChatDetailScreen() {
               style={styles.menuRow}
               onPress={() => {
                 setShowMenu(false);
+                router.push("/chat/create-split-bill");
+              }}
+            >
+              <Ionicons
+                name="cash"
+                size={22}
+                color="#2ECC71"
+                style={styles.menuIcon}
+              />
+              <Text style={styles.menuText}>Chia tiền</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => {
+                setShowMenu(false);
                 router.push(`/chat/create-reminder?id=${id}`);
               }}
             >
