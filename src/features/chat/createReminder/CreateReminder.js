@@ -1,12 +1,32 @@
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 
 export default function CreateReminderScreen() {
+  const { id } = useLocalSearchParams(); // lấy id nhóm chat
   const [title, setTitle] = useState("");
-  const [target, setTarget] = useState("me"); 
+  const [target, setTarget] = useState("me");
+
+  const handleCreateReminder = () => {
+    if (!title) return;
+
+    const reminder = {
+      title,
+      target,
+      date: new Date().toLocaleDateString("vi-VN"),
+      time: new Date().toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+
+    router.push({
+      pathname: `/chat/${id}`,
+      params: { reminder: JSON.stringify(reminder) },
+    });
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -26,7 +46,12 @@ export default function CreateReminderScreen() {
       <View style={styles.body}>
         {/* Chủ đề */}
         <View style={styles.inputRow}>
-          <Ionicons name="time-outline" size={22} color="#666" style={styles.icon} />
+          <Ionicons
+            name="time-outline"
+            size={22}
+            color="#666"
+            style={styles.icon}
+          />
           <TextInput
             placeholder="Gặp nhau lúc..."
             placeholderTextColor="#999"
@@ -38,10 +63,18 @@ export default function CreateReminderScreen() {
 
         {/* Nhắc cho */}
         <View style={styles.inputRow}>
-          <Ionicons name="lock-closed-outline" size={22} color="#666" style={styles.icon} />
+          <Ionicons
+            name="lock-closed-outline"
+            size={22}
+            color="#666"
+            style={styles.icon}
+          />
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>Nhắc cho</Text>
-            <TouchableOpacity onPress={() => setTarget("me")} style={styles.radioRow}>
+            <TouchableOpacity
+              onPress={() => setTarget("me")}
+              style={styles.radioRow}
+            >
               <Ionicons
                 name={target === "me" ? "radio-button-on" : "radio-button-off"}
                 size={18}
@@ -49,7 +82,10 @@ export default function CreateReminderScreen() {
               />
               <Text style={styles.radioText}>Chỉ mình tôi</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setTarget("group")} style={styles.radioRow}>
+            <TouchableOpacity
+              onPress={() => setTarget("group")}
+              style={styles.radioRow}
+            >
               <Ionicons
                 name={target === "group" ? "radio-button-on" : "radio-button-off"}
                 size={18}
@@ -62,7 +98,10 @@ export default function CreateReminderScreen() {
       </View>
 
       {/* Button */}
-      <TouchableOpacity style={styles.createButton}>
+      <TouchableOpacity
+        style={styles.createButton}
+        onPress={handleCreateReminder}
+      >
         <Text style={styles.createButtonText}>Tạo nhắc hẹn</Text>
       </TouchableOpacity>
     </SafeAreaView>

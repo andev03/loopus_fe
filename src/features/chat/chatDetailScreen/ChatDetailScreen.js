@@ -15,7 +15,7 @@ import { useState, useEffect } from "react";
 import styles from "./ChatDetailScreen.styles";
 
 export default function ChatDetailScreen() {
-  const { id, poll } = useLocalSearchParams();
+  const { id, poll, reminder } = useLocalSearchParams();
   const [showMenu, setShowMenu] = useState(false);
   const [messages, setMessages] = useState([
     {
@@ -36,7 +36,7 @@ export default function ChatDetailScreen() {
     },
   ]);
 
-  // 👉 Nhận poll trả về từ CreatePollScreen
+  // 👉 Nhận poll từ CreatePollScreen
   useEffect(() => {
     if (poll) {
       try {
@@ -54,23 +54,23 @@ export default function ChatDetailScreen() {
     }
   }, [poll]);
 
-  // 👉 Hàm xử lý khi bấm "Chia tiền"
-  const handleAddEvent = () => {
-    const newEvent = {
-      id: Date.now().toString(),
-      sender: "Bạn",
-      type: "event",
-      event: {
-        title: "Họp bàn chia tiền",
-        date: "Thứ 7, 12 tháng 7",
-        time: "Lúc 15:30",
-        day: "THG 7",
-        dateNumber: "12",
-      },
-    };
-    setMessages((prev) => [...prev, newEvent]);
-    setShowMenu(false);
-  };
+  // 👉 Nhận reminder từ CreateReminderScreen
+  useEffect(() => {
+    if (reminder) {
+      try {
+        const parsed = JSON.parse(reminder);
+        const newEvent = {
+          id: Date.now().toString(),
+          type: "event",
+          sender: "Bạn",
+          event: parsed,
+        };
+        setMessages((prev) => [...prev, newEvent]);
+      } catch (e) {
+        console.log("Reminder parse error:", e);
+      }
+    }
+  }, [reminder]);
 
   const renderMessage = ({ item }) => {
     if (item.type === "text") {
@@ -93,58 +93,52 @@ export default function ChatDetailScreen() {
     if (item.type === "event") {
       return (
         <View style={styles.eventCard}>
-          <Text style={styles.eventHeader}>Bạn đã tạo một cuộc hẹn</Text>
+          <Text style={styles.eventHeader}>📅 Bạn đã tạo một nhắc hẹn</Text>
           <View style={styles.eventBody}>
-            <View style={styles.eventDate}>
-              <Text style={styles.eventDay}>{item.event.day}</Text>
-              <Text style={styles.eventDateNumber}>
-                {item.event.dateNumber}
-              </Text>
-            </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.eventTitle}>{item.event.title}</Text>
               <Text style={styles.eventTime}>
-                {item.event.date}
-                {"\n"}
-                {item.event.time}
+                {item.event.date} - {item.event.time}
+              </Text>
+              <Text style={styles.eventTarget}>
+                Nhắc cho:{" "}
+                {item.event.target === "me" ? "Chỉ mình tôi" : "Cả nhóm"}
               </Text>
             </View>
           </View>
           <View style={styles.eventActions}>
-            <Text style={styles.eventReject}>Từ chối</Text>
-            <Text style={styles.eventAccept}>Tham gia</Text>
+            <Text style={styles.eventReject}>Bỏ qua</Text>
+            <Text style={styles.eventAccept}>OK</Text>
           </View>
         </View>
       );
     }
 
     if (item.type === "poll") {
-  return (
-    <View style={styles.pollCard}>
-      <View style={styles.pollHeaderRow}>
-        <Ionicons name="person-circle" size={16} color="#6b6b6b" />
-        <Text style={styles.pollHeader}>Bạn đã tạo lượt bình chọn</Text>
-      </View>
-
-      <Text style={styles.pollTitle} numberOfLines={2}>
-        {item.poll.title}
-      </Text>
-
-      <View style={styles.pollOptions}>
-        {item.poll.options.map((opt, idx) => (
-          <View key={idx} style={styles.pollOption}>
-            
-            <View style={styles.pollRadioOuter}>
-              <View style={styles.pollRadioInner} />
-            </View>
-
-            <Text style={styles.pollOptionText}>{opt}</Text>
+      return (
+        <View style={styles.pollCard}>
+          <View style={styles.pollHeaderRow}>
+            <Ionicons name="person-circle" size={16} color="#6b6b6b" />
+            <Text style={styles.pollHeader}>Bạn đã tạo lượt bình chọn</Text>
           </View>
-        ))}
-      </View>
-    </View>
-  );
-}
+
+          <Text style={styles.pollTitle} numberOfLines={2}>
+            {item.poll.title}
+          </Text>
+
+          <View style={styles.pollOptions}>
+            {item.poll.options.map((opt, idx) => (
+              <View key={idx} style={styles.pollOption}>
+                <View style={styles.pollRadioOuter}>
+                  <View style={styles.pollRadioInner} />
+                </View>
+                <Text style={styles.pollOptionText}>{opt}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      );
+    }
   };
 
   return (
@@ -246,23 +240,20 @@ export default function ChatDetailScreen() {
               />
               <Text style={styles.menuText}>Bình chọn</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.menuRow} onPress={handleAddEvent}>
-              <Ionicons
-                name="cash"
-                size={22}
-                color="#2ECC71"
-                style={styles.menuIcon}
-              />
-              <Text style={styles.menuText}>Chia tiền</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.menuRow}>
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => {
+                setShowMenu(false);
+                router.push(`/chat/create-reminder?id=${id}`);
+              }}
+            >
               <Ionicons
                 name="alarm"
                 size={22}
                 color="#2ECC71"
                 style={styles.menuIcon}
               />
-              <Text style={styles.menuText}>Nhắc nợ</Text>
+              <Text style={styles.menuText}>Nhắc hẹn</Text>
             </TouchableOpacity>
           </View>
         )}
