@@ -3,8 +3,13 @@ import { Text, View, ScrollView, TouchableOpacity, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import styles from "./HomeScreen.styles";
+import { useRouter } from "expo-router";
+
+
 
 export default function HomeScreen() {
+  const router = useRouter();
+  
   return (
     <ScrollView style={styles.container}>
       {/* Header */}
@@ -14,7 +19,7 @@ export default function HomeScreen() {
           <Text style={styles.logo}>LOOPUS</Text>
 
           {/* Icon bên phải */}
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push("/notification/notifications")}>
             <Ionicons name="notifications-outline" size={24} color="black" />
           </TouchableOpacity>
         </View>
@@ -24,22 +29,38 @@ export default function HomeScreen() {
         {/* Nhóm bạn bè */}
         <View style={styles.groups}>
           <TouchableOpacity style={styles.groupBox}>
-            <Image source={{ uri: "https://randomuser.me/api/portraits/men/1.jpg" }} style={styles.groupImage} />
+            <Image
+              source={{ uri: "https://randomuser.me/api/portraits/men/1.jpg" }}
+              style={styles.groupImage}
+            />
             <Text>Group 1</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.groupBox}>
-            <Image source={{ uri: "https://randomuser.me/api/portraits/women/2.jpg" }} style={styles.groupImage} />
+            <Image
+              source={{
+                uri: "https://randomuser.me/api/portraits/women/2.jpg",
+              }}
+              style={styles.groupImage}
+            />
             <Text>Group 2</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.groupBox}>
-            <Image source={{ uri: "https://picsum.photos/100?random=3" }} style={styles.groupImage} />
+            <Image
+              source={{ uri: "https://picsum.photos/100?random=3" }}
+              style={styles.groupImage}
+            />
             <Text>Group 3</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.groupBox}>
-            <Image source={{ uri: "https://source.unsplash.com/random/100x100?friends" }} style={styles.groupImage} />
+            <Image
+              source={{
+                uri: "https://source.unsplash.com/random/100x100?friends",
+              }}
+              style={styles.groupImage}
+            />
             <Text>Group 4</Text>
           </TouchableOpacity>
         </View>
@@ -47,7 +68,11 @@ export default function HomeScreen() {
         {/* Nhắc nợ & Chia tiền */}
         <View style={styles.actionContainer}>
           <TouchableOpacity style={[styles.actionItem, styles.leftItem]}>
-            <Ionicons name="notifications-circle-outline" size={28} color="#555" />
+            <Ionicons
+              name="notifications-circle-outline"
+              size={28}
+              color="#555"
+            />
             <Text style={styles.actionText}>Nhắc nợ</Text>
           </TouchableOpacity>
 
@@ -60,16 +85,26 @@ export default function HomeScreen() {
 
       {/* Du lịch Section */}
       <Text style={styles.sectionTitle}>Du lịch</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dealRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.dealRow}
+      >
         <TouchableOpacity style={styles.travelCard}>
-          <Image source={{ uri: "https://picsum.photos/300/200?random=11" }} style={styles.travelImage} />
+          <Image
+            source={{ uri: "https://picsum.photos/300/200?random=11" }}
+            style={styles.travelImage}
+          />
           <View style={styles.overlay}>
             <Text style={styles.overlayText}>Xem ngay</Text>
           </View>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.travelCard}>
-          <Image source={{ uri: "https://picsum.photos/300/200?random=12" }} style={styles.travelImage} />
+          <Image
+            source={{ uri: "https://picsum.photos/300/200?random=12" }}
+            style={styles.travelImage}
+          />
           <View style={styles.overlay}>
             <Text style={styles.overlayText}>Xem ngay</Text>
           </View>
@@ -78,15 +113,28 @@ export default function HomeScreen() {
 
       {/* Deal đỉnh */}
       <Text style={styles.sectionTitle}>Deal đỉnh</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dealRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.dealRow}
+      >
         <TouchableOpacity style={styles.dealCard}>
-          <Image source={{ uri: "https://picsum.photos/200/150?random=21" }} style={styles.dealImageFull} />
+          <Image
+            source={{ uri: "https://picsum.photos/200/150?random=21" }}
+            style={styles.dealImageFull}
+          />
         </TouchableOpacity>
         <TouchableOpacity style={styles.dealCard}>
-          <Image source={{ uri: "https://picsum.photos/200/150?random=22" }} style={styles.dealImageFull} />
+          <Image
+            source={{ uri: "https://picsum.photos/200/150?random=22" }}
+            style={styles.dealImageFull}
+          />
         </TouchableOpacity>
         <TouchableOpacity style={styles.dealCard}>
-          <Image source={{ uri: "https://picsum.photos/200/150?random=23" }} style={styles.dealImageFull} />
+          <Image
+            source={{ uri: "https://picsum.photos/200/150?random=23" }}
+            style={styles.dealImageFull}
+          />
         </TouchableOpacity>
       </ScrollView>
 
@@ -95,16 +143,26 @@ export default function HomeScreen() {
 
       {/* Du lịch */}
       <Text style={styles.subTitle}>Du lịch</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dealRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.dealRow}
+      >
         <TouchableOpacity style={styles.travelCard}>
-          <Image source={{ uri: "https://picsum.photos/300/200?random=31" }} style={styles.travelImage} />
+          <Image
+            source={{ uri: "https://picsum.photos/300/200?random=31" }}
+            style={styles.travelImage}
+          />
           <View style={styles.overlay}>
             <Text style={styles.overlayText}>Xem ngay</Text>
           </View>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.travelCard}>
-          <Image source={{ uri: "https://picsum.photos/300/200?random=32" }} style={styles.travelImage} />
+          <Image
+            source={{ uri: "https://picsum.photos/300/200?random=32" }}
+            style={styles.travelImage}
+          />
           <View style={styles.overlay}>
             <Text style={styles.overlayText}>Xem ngay</Text>
           </View>
@@ -113,26 +171,49 @@ export default function HomeScreen() {
 
       {/* Ăn uống */}
       <Text style={styles.subTitle}>Ăn uống</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dealRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.dealRow}
+      >
         <TouchableOpacity style={styles.dealCard}>
-          <Image source={{ uri: "https://picsum.photos/200/150?random=41" }} style={styles.dealImageFull} />
+          <Image
+            source={{ uri: "https://picsum.photos/200/150?random=41" }}
+            style={styles.dealImageFull}
+          />
         </TouchableOpacity>
         <TouchableOpacity style={styles.dealCard}>
-          <Image source={{ uri: "https://picsum.photos/200/150?random=42" }} style={styles.dealImageFull} />
+          <Image
+            source={{ uri: "https://picsum.photos/200/150?random=42" }}
+            style={styles.dealImageFull}
+          />
         </TouchableOpacity>
         <TouchableOpacity style={styles.dealCard}>
-          <Image source={{ uri: "https://picsum.photos/200/150?random=43" }} style={styles.dealImageFull} />
+          <Image
+            source={{ uri: "https://picsum.photos/200/150?random=43" }}
+            style={styles.dealImageFull}
+          />
         </TouchableOpacity>
       </ScrollView>
 
       {/* Dành cho nhóm bạn */}
       <Text style={styles.subTitle}>Dành cho nhóm bạn</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dealRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.dealRow}
+      >
         <TouchableOpacity style={styles.dealCard}>
-          <Image source={{ uri: "https://picsum.photos/200/150?random=51" }} style={styles.dealImageFull} />
+          <Image
+            source={{ uri: "https://picsum.photos/200/150?random=51" }}
+            style={styles.dealImageFull}
+          />
         </TouchableOpacity>
         <TouchableOpacity style={styles.dealCard}>
-          <Image source={{ uri: "https://picsum.photos/200/150?random=52" }} style={styles.dealImageFull} />
+          <Image
+            source={{ uri: "https://picsum.photos/200/150?random=52" }}
+            style={styles.dealImageFull}
+          />
         </TouchableOpacity>
       </ScrollView>
     </ScrollView>
