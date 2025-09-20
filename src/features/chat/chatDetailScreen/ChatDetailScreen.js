@@ -259,16 +259,16 @@ export default function ChatDetailScreen() {
               style={styles.menuRow}
               onPress={() => {
                 setShowMenu(false);
-                router.push(`/chat/create-reminder?id=${id}`);
+                router.push("/chat/group-reminder");
               }}
             >
               <Ionicons
-                name="alarm"
+                name="cash-outline"
                 size={22}
                 color="#2ECC71"
                 style={styles.menuIcon}
               />
-              <Text style={styles.menuText}>Nhắc hẹn</Text>
+              <Text style={styles.menuText}>Nhắc nợ</Text>
             </TouchableOpacity>
           </View>
         )}
