@@ -8,7 +8,7 @@ import {
   View,
   Alert,
 } from "react-native";
-import { login } from "../../services/authService"; 
+import { login } from "../../services/authService";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -16,18 +16,16 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
 
   const handleLogin = async () => {
-    try {
-      const data = await login(username, password);
-      console.log("Login success:", data);
+  const result = await login(username, password);
+  console.log("Login result:", result);
 
-    
-
-      Alert.alert("Thành công", "Đăng nhập thành công!");
-      router.replace("/(tabs)/home"); 
-    } catch (err) {
-      Alert.alert("Lỗi", err.message || "Sai tài khoản hoặc mật khẩu");
-    }
-  };
+  if (result.status === 200) {
+    Alert.alert("Thành công", result.message || "Đăng nhập thành công!");
+    router.replace("/(tabs)/home");
+  } else {
+    Alert.alert("Lỗi", result.message || "Sai tài khoản hoặc mật khẩu");
+  }
+};
 
   return (
     <View style={styles.container}>
@@ -36,7 +34,7 @@ export default function LoginScreen() {
 
       <TextInput
         style={styles.input}
-        placeholder="Email hoặc số điện thoại"
+        placeholder="Vui lòng nhập email "
         value={username}
         onChangeText={setUsername}
       />
@@ -47,6 +45,12 @@ export default function LoginScreen() {
         value={password}
         onChangeText={setPassword}
       />
+
+      <View style={styles.forgotContainer}>
+        <TouchableOpacity onPress={() => router.push("/forgot-password")}>
+          <Text style={styles.forgotText}>Quên mật khẩu?</Text>
+        </TouchableOpacity>
+      </View>
 
       <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
         <Text style={styles.loginText}>Đăng nhập</Text>
@@ -63,7 +67,13 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20, backgroundColor: "#fff" },
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "#fff",
+  },
   title: { fontSize: 22, fontWeight: "bold", marginBottom: 8 },
   subtitle: { fontSize: 16, marginBottom: 20 },
   input: {
@@ -81,7 +91,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 10,
   },
-  loginText: { color: "#fff", fontSize: 16, fontWeight: "600", textAlign: "center" },
+  loginText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+  },
   registerButton: {
     width: "100%",
     borderWidth: 1,
@@ -89,5 +104,20 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 8,
   },
-  registerText: { color: "#2ECC71", fontSize: 16, fontWeight: "600", textAlign: "center" },
+  registerText: {
+    color: "#2ECC71",
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  forgotContainer: {
+    width: "100%",
+    alignItems: "flex-end",
+    marginBottom: 20,
+  },
+  forgotText: {
+    fontSize: 14,
+    color: "#2ECC71",
+    fontWeight: "600",
+  },
 });
