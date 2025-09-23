@@ -9,16 +9,12 @@ export const sendForgotPasswordOtp = async (email) => {
       null,
       { params: { email } }
     );
-
-    console.log("Send OTP response:", res.data);
-
     return {
-      success: res.data?.status === 0 || res.data?.status === 200,  
+      success: res.data?.status === 200,   
       message: res.data?.message,
       data: res.data,
     };
   } catch (error) {
-    console.error("Send OTP error:", error.response?.data || error.message);
     return {
       success: false,
       message: error.response?.data?.message || "Gửi OTP thất bại",
@@ -26,24 +22,39 @@ export const sendForgotPasswordOtp = async (email) => {
   }
 };
 
-export const verifyForgotPassword = async (email, otp, password, confirmPassword) => {
+export const verifyForgotPasswordOtp = async (email, otp) => {
   try {
-    const res = await axios.post(`${API_URL}/otp/verify-forgot-password`, {
-      email,
-      otp,
-      password,
-      confirmPassword,
-    });
-
-    console.log("Verify forgot password response:", res.data);
-
+    const res = await axios.post(
+      `${API_URL}/otp/verify-forgot-password`,
+      null,
+      { params: { email, otp } }
+    );
     return {
-      success: res.data?.status === 0 || res.data?.status === 200,
+      success: res.data?.status === 200,   
       message: res.data?.message,
       data: res.data,
     };
   } catch (error) {
-    console.error("Verify forgot password error:", error.response?.data || error.message);
+    return {
+      success: false,
+      message: error.response?.data?.message || "Xác minh OTP thất bại",
+    };
+  }
+};
+
+export const resetPassword = async (email, password, confirmPassword) => {
+  try {
+    const res = await axios.post(`${API_URL}/otp/reset-password`, {
+      email,
+      password,
+      confirmPassword,
+    });
+    return {
+      success: res.data?.status === 200,  
+      message: res.data?.message,
+      data: res.data,
+    };
+  } catch (error) {
     return {
       success: false,
       message: error.response?.data?.message || "Đặt lại mật khẩu thất bại",
