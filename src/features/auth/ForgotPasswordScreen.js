@@ -8,50 +8,68 @@ import {
   View,
   Alert,
 } from "react-native";
+import { sendForgotPasswordOtp, verifyForgotPassword } from "../../services/resetPasswordService";
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
 
-  const [step, setStep] = useState(1); // 1: nhập email, 2: nhập OTP, 3: đặt mật khẩu
+  const [step, setStep] = useState(1); 
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  const handleSendOtp = () => {
-    if (!email) {
-      Alert.alert("Lỗi", "Vui lòng nhập email");
-      return;
-    }
-    // 🚀 call API gửi OTP
-    console.log("Send OTP to:", email);
+  const handleSendOtp = async () => {
+  if (!email) {
+    Alert.alert("Lỗi", "Vui lòng nhập email");
+    return;
+  }
+
+  const res = await sendForgotPasswordOtp(email);
+  console.log("Send OTP result:", res);
+  if (res.success) {
+    Alert.alert("Thành công", "OTP đã được gửi tới email của bạn");
     setStep(2);
-  };
+  } else {
+    Alert.alert("Lỗi", res.message);
+  }
+  
+};
 
-  const handleVerifyOtp = () => {
-    if (!otp) {
-      Alert.alert("Lỗi", "Vui lòng nhập OTP");
-      return;
-    }
-    // 🚀 call API verify OTP
-    console.log("Verify OTP:", otp);
+  const handleVerifyOtp = async () => {
+  if (!otp) {
+    Alert.alert("Lỗi", "Vui lòng nhập OTP");
+    return;
+  }
+  const res = await verifyForgotPassword(email, otp, null, null);
+
+  if (res.success) {
+    Alert.alert("Thành công", "Mã OTP chính xác, hãy đặt lại mật khẩu");
     setStep(3);
-  };
+  } else {
+    Alert.alert("Lỗi", res.message || "OTP không hợp lệ");
+  }
+};
 
-  const handleResetPassword = () => {
-    if (!password || !confirmPassword) {
-      Alert.alert("Lỗi", "Vui lòng nhập mật khẩu");
-      return;
-    }
-    if (password !== confirmPassword) {
-      Alert.alert("Lỗi", "Mật khẩu không khớp");
-      return;
-    }
-    // 🚀 call API reset password
-    console.log("Reset password:", password);
-    Alert.alert("Thành công", "Mật khẩu đã được đặt lại!");
-    router.replace("/login");
-  };
+  const handleResetPassword = async () => {
+  if (!password || !confirmPassword) {
+    Alert.alert("Lỗi", "Vui lòng nhập mật khẩu");
+    return;
+  }
+  if (password !== confirmPassword) {
+    Alert.alert("Lỗi", "Mật khẩu không khớp");
+    return;
+  }
+
+  const res = await verifyForgotPassword(email, otp, password, confirmPassword);
+  if (res.success) {
+    Alert.alert("Thành công", "Mật khẩu đã được đặt lại!", [
+      { text: "OK", onPress: () => router.replace("/login") },
+    ]);
+  } else {
+    Alert.alert("Lỗi", res.message);
+  }
+};
 
   return (
     <View style={styles.container}>

@@ -97,29 +97,30 @@ export default function RegisterScreen() {
 
     console.log("Sending to API:", userData); 
 
-    try {
-      const response = await register(userData);
-      
-      if (response.success) {
-        Alert.alert(
-          "Thành công", 
-          "Đăng ký thành công! Vui lòng đăng nhập.",
-          [
-            {
-              text: "OK",
-              onPress: () => router.push("/login")
-            }
-          ]
-        );
-      } else {
-        Alert.alert("Lỗi", response.message);
-      }
-    } catch (error) {
-      console.error("Register error:", error);
-      Alert.alert("Lỗi", "Có lỗi xảy ra. Vui lòng thử lại.");
-    } finally {
-      setIsLoading(false);
-    }
+  try {
+  const response = await register(userData);
+
+  if (response.success) {
+    Alert.alert(
+      "Thành công", 
+      "Đăng ký thành công! Vui lòng nhập mã OTP được gửi về email.",
+      [
+        {
+          text: "OK",
+          onPress: () => router.push(`/verify-otp-register?email=${formData.email}`)
+        }
+      ]
+    );
+  } else {
+    Alert.alert("Lỗi", response.message || "Đăng ký thất bại");
+  }
+} catch (error) {
+  console.error("Register error:", error);
+  Alert.alert("Lỗi", "Có lỗi xảy ra. Vui lòng thử lại.");
+} finally {
+  setIsLoading(false);
+}
+
   };
 
   return (

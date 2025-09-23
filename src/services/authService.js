@@ -6,17 +6,21 @@ export const register = async (userData) => {
   try {
     const res = await axios.post(`${API_URL}/register`, userData);
     console.log("Register API response:", res.data);
-    
+
+    // ✅ Check backend status
+    const success = res.data?.status === 200;
+
     return {
-      status: res.status,
+      status: res.data?.status,
       data: res.data,
-      success: true
+      success,
+      message: res.data?.message
     };
   } catch (error) {
     console.log("Register error:", error.response?.data || error.message);
-    
+
     let message = error.response?.data?.message || "Đăng ký thất bại";
-    
+
     return {
       status: error.response?.status || 500,
       message,
@@ -46,3 +50,5 @@ export const login = async (username, password) => {
     };
   }
 };
+
+
