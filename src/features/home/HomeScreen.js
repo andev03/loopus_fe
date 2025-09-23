@@ -28,7 +28,8 @@ export default function HomeScreen() {
       <View style={styles.groupsSection}>
         {/* Nhóm bạn bè */}
         <View style={styles.groups}>
-          <TouchableOpacity style={styles.groupBox}>
+          <TouchableOpacity style={styles.groupBox}
+          onPress={() => router.push("/group/camera")}>
             <Image
               source={{ uri: "https://randomuser.me/api/portraits/men/1.jpg" }}
               style={styles.groupImage}
@@ -36,7 +37,8 @@ export default function HomeScreen() {
             <Text>Group 1</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.groupBox}>
+          <TouchableOpacity style={styles.groupBox}
+          onPress={() => router.push("/group/camera")}>
             <Image
               source={{
                 uri: "https://randomuser.me/api/portraits/women/2.jpg",
@@ -46,7 +48,8 @@ export default function HomeScreen() {
             <Text>Group 2</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.groupBox}>
+          <TouchableOpacity style={styles.groupBox}
+          onPress={() => router.push("/group/camera")}>
             <Image
               source={{ uri: "https://picsum.photos/100?random=3" }}
               style={styles.groupImage}
@@ -54,7 +57,8 @@ export default function HomeScreen() {
             <Text>Group 3</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.groupBox}>
+          <TouchableOpacity style={styles.groupBox}
+          onPress={() => router.push("/group/camera")}>
             <Image
               source={{
                 uri: "https://source.unsplash.com/random/100x100?friends",
