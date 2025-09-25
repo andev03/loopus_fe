@@ -34,16 +34,16 @@ export const login = async (username, password) => {
     const res = await axios.post(`${API_URL}/login`, { username, password });
     console.log("API response:", res.data);
 
-    return res.data;
+    return {
+      status: res.data?.status,
+      message: res.data?.message,
+      user: res.data?.data,   // 👈 user object có userId
+      token: res.data?.token, // 👈 nếu backend có trả token
+    };
   } catch (error) {
     console.log("Login error:", error.response?.data || error.message);
-    let message =
-      error.response?.data?.message || "Đăng nhập thất bại";
 
-     if (lowerMsg.includes("Invalid username or password")) {
-      message = "Sai tài khoản hoặc mật khẩu";
-    }
-
+    let message = error.response?.data?.message || "Đăng nhập thất bại";
     return {
       status: error.response?.status || 500,
       message,

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,12 +6,16 @@ import {
   Image,
   TouchableOpacity,
   TextInput,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import styles from "../createGroupScreen/CreateGroupScreen.styles";
+import { groupService } from "../../../services/groupService";
+import { getUser } from "../../../services/storageService";
 
+// Fake contact list
 const contacts = [
   {
     id: "1",
@@ -34,19 +38,64 @@ const contacts = [
 ];
 
 function CreateGroupScreen() {
-  const renderItem = ({ item }) => (
-    <View style={styles.item}>
-      <TouchableOpacity style={styles.checkbox} />
-      <Image source={{ uri: item.avatar }} style={styles.avatar} />
-      <View style={styles.textContainer}>
-        <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.time}>{item.time}</Text>
+  const [groupName, setGroupName] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  // Toggle chọn thành viên
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const renderItem = ({ item }) => {
+    const isSelected = selectedIds.includes(item.id);
+    return (
+      <View style={styles.item}>
+        <TouchableOpacity
+          style={[
+            styles.checkbox,
+            { backgroundColor: isSelected ? "#4CAF50" : "#fff" },
+          ]}
+          onPress={() => toggleSelect(item.id)}
+        />
+        <Image source={{ uri: item.avatar }} style={styles.avatar} />
+        <View style={styles.textContainer}>
+          <Text style={styles.name}>{item.name}</Text>
+          <Text style={styles.time}>{item.time}</Text>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
+
+const handleCreateGroup = async () => {
+  const user = await getUser();
+  console.log("👉 User lấy từ AsyncStorage:", user);
+
+  if (!user?.userId) {
+    console.log("❌ Không tìm thấy userId");
+    return;
+  }
+
+  const fakeMember1 = "11111111-1111-1111-1111-111111111111";
+  const fakeMember2 = "22222222-2222-2222-2222-222222222222";
+
+  const payload = {
+    name: groupName || "Nhóm test",
+    description: "Group được tạo từ app",
+    createdBy: user.userId,
+    userMemberIds: [user.userId, fakeMember1, fakeMember2], // ✅ ít nhất 2 thành viên
+  };
+
+  const res = await groupService.createGroup(payload);
+  console.log("👉 Kết quả tạo group:", res);
+};
+
+
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.replace("/chat")}>
           <Ionicons name="close" size={24} color="#fff" />
@@ -54,12 +103,19 @@ function CreateGroupScreen() {
         <Text style={styles.headerTitle}>Nhóm mới</Text>
       </View>
 
+      {/* Nhập tên nhóm */}
       <View style={styles.groupInput}>
         <Ionicons name="camera-outline" size={28} color="#888" />
-        <TextInput placeholder="Tên nhóm" style={styles.groupNameInput} />
+        <TextInput
+          placeholder="Tên nhóm"
+          style={styles.groupNameInput}
+          value={groupName}
+          onChangeText={setGroupName}
+        />
         <Ionicons name="expand-outline" size={22} color="#888" />
       </View>
 
+      {/* Ô tìm kiếm */}
       <View style={styles.searchBar}>
         <Ionicons name="search-outline" size={18} color="#888" />
         <TextInput
@@ -69,6 +125,7 @@ function CreateGroupScreen() {
         />
       </View>
 
+      {/* Danh sách contact */}
       <FlatList
         data={contacts}
         keyExtractor={(item) => item.id}
@@ -76,7 +133,8 @@ function CreateGroupScreen() {
         ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
 
-      <TouchableOpacity style={styles.sendButton}>
+      {/* Nút gửi */}
+      <TouchableOpacity style={styles.sendButton} onPress={handleCreateGroup}>
         <Ionicons name="send" size={26} color="#fff" />
       </TouchableOpacity>
     </SafeAreaView>
