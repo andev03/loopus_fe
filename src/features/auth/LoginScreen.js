@@ -9,6 +9,7 @@ import {
   Alert,
 } from "react-native";
 import { login } from "../../services/authService";
+import { saveUser, saveToken } from "../../services/storageService";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -19,13 +20,21 @@ export default function LoginScreen() {
   const result = await login(username, password);
   console.log("Login result:", result);
 
-  if (result.status === 200) {
+  if (result.status === 200 && result.user) {
+    await saveUser(result.user);   // 👈 lưu user
+    if (result.token) {
+      await saveToken(result.token); // 👈 nếu có token
+    }
+
+    console.log("👉 Đã lưu user:", result.user);
+
     Alert.alert("Thành công", result.message || "Đăng nhập thành công!");
     router.replace("/(tabs)/home");
   } else {
     Alert.alert("Lỗi", result.message || "Sai tài khoản hoặc mật khẩu");
   }
 };
+
 
   return (
     <View style={styles.container}>
