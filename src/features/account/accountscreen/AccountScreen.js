@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import styles from "./AccountScreen.styles";
+import styles from "../accountScreen/AccountScreen.styles";
 import {
   clearUser,
   clearToken,
@@ -55,7 +55,7 @@ export default function AccountScreen() {
             style={styles.avatar}
           />
 
-          {/* Bọc 2 nút trong actionRow */}
+          {/* 2 nút QR + sửa thông tin */}
           <View style={styles.actionRow}>
             <TouchableOpacity style={styles.actionButton}>
               <Text style={styles.actionText}>Mã QR của tôi</Text>
@@ -71,15 +71,26 @@ export default function AccountScreen() {
           <TouchableOpacity style={styles.menuItem}>
             <Text style={styles.menuText}>Loopus Premium</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push("/notification/help-center")} 
+          >
             <Text style={styles.menuText}>Trung tâm trợ giúp</Text>
           </TouchableOpacity>
+
           <TouchableOpacity style={styles.menuItem}>
             <Text style={styles.menuText}>Thông tin chung</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
+
+          {/* 👉 Điều hướng sang trang notification-setting */}
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push("/notification/notification-setting")}
+          >
             <Text style={styles.menuText}>Cài đặt thông báo</Text>
           </TouchableOpacity>
+
           <TouchableOpacity style={styles.menuItem}>
             <Text style={styles.menuText}>Chia sẻ góp ý</Text>
           </TouchableOpacity>
