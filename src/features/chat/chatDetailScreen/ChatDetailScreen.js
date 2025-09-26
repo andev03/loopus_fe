@@ -65,38 +65,41 @@ export default function ChatDetailScreen() {
   };
 
   const renderMessage = ({ item }) => {
-    const isMe = item.isCurrentUser;
+  const isMe = item.isCurrentUser;
+  const avatarSource = item.avatarUrl ? { uri: item.avatarUrl } : require("../../../assets/images/default-avatar.jpg");
 
-    return (
+  return (
+    <View
+      style={[
+        styles.messageRow,
+        isMe ? { justifyContent: "flex-end" } : { justifyContent: "flex-start" },
+      ]}
+    >
+      {!isMe && (
+        <Image
+          source={avatarSource}
+          style={styles.avatar}
+        />
+      )}
+
       <View
         style={[
-          styles.messageRow,
+          styles.bubble,
+          { backgroundColor: "#fff" },
           isMe
-            ? { justifyContent: "flex-end" }
-            : { justifyContent: "flex-start" },
+            ? { borderBottomRightRadius: 0, alignSelf: "flex-end" }
+            : { borderBottomLeftRadius: 0, alignSelf: "flex-start" },
         ]}
       >
-        {/* Avatar chỉ hiện với người khác */}
-        {!isMe && <Image source={{ uri: item.avatar }} style={styles.avatar} />}
-
-        <View
-          style={[
-            styles.bubble,
-            { backgroundColor: "#fff" }, // luôn màu trắng
-            isMe
-              ? { borderBottomRightRadius: 0 }
-              : { borderBottomLeftRadius: 0 },
-          ]}
-        >
-          <View style={styles.headerRow}>
-            {!isMe && <Text style={styles.sender}>{item.sender}</Text>}
-            <Text style={styles.time}>{item.time}</Text>
-          </View>
-          <Text style={styles.messageText}>{item.text}</Text>
+        <View style={styles.headerRow}>
+          {!isMe && <Text style={styles.sender}>{item.sender}</Text>}
+          <Text style={styles.time}>{item.time}</Text>
         </View>
+        <Text style={styles.messageText}>{item.text}</Text>
       </View>
-    );
-  };
+    </View>
+  );
+};
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
