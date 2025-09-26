@@ -31,9 +31,14 @@ export default function ChatDetailScreen() {
         const u = await getUser();
         setUser(u);
 
-        const res = await chatService.getChatsByGroup(groupId);
+        const res = await chatService.getChatsByGroup(groupId, u.userId);
         if (res.success) {
-          setMessages(res.data);
+          // thêm flag isCurrentUser vào mỗi message
+          const mapped = res.data.map((m) => ({
+            ...m,
+            isCurrentUser: m.sender === "Bạn", // hoặc check m.userId === u.userId nếu có
+          }));
+          setMessages(mapped);
         }
       } catch (err) {
         console.log("❌ Lỗi fetch chats:", err);
@@ -46,36 +51,52 @@ export default function ChatDetailScreen() {
   }, [groupId]);
 
   const handleSend = async () => {
-  if (!inputText.trim() || !user) return;
+    if (!inputText.trim() || !user) return;
 
-  const text = inputText.trim();
+    const text = inputText.trim();
 
-  const res = await chatService.sendMessage(groupId, user.userId, text);
-  if (res.success && res.data) {
-    // lấy tin nhắn thật từ server
-    setMessages((prev) => [...prev, res.data]);
-    setInputText("");
-  }
-};
+    const res = await chatService.sendMessage(groupId, user.userId, text);
+    if (res.success && res.data) {
+      // Thêm cờ isCurrentUser cho tin nhắn gửi đi
+      const newMsg = { ...res.data, isCurrentUser: true };
+      setMessages((prev) => [...prev, newMsg]);
+      setInputText("");
+    }
+  };
 
-  // Render tin nhắn
-  const renderMessage = ({ item }) => (
-    <View style={styles.messageRow}>
-      <Image
-        source={{ uri: item.avatar || "https://via.placeholder.com/150" }}
-        style={styles.avatar}
-      />
-      <View style={styles.bubbleContainer}>
-        <View style={styles.bubble}>
+  const renderMessage = ({ item }) => {
+    const isMe = item.isCurrentUser;
+
+    return (
+      <View
+        style={[
+          styles.messageRow,
+          isMe
+            ? { justifyContent: "flex-end" }
+            : { justifyContent: "flex-start" },
+        ]}
+      >
+        {/* Avatar chỉ hiện với người khác */}
+        {!isMe && <Image source={{ uri: item.avatar }} style={styles.avatar} />}
+
+        <View
+          style={[
+            styles.bubble,
+            { backgroundColor: "#fff" }, // luôn màu trắng
+            isMe
+              ? { borderBottomRightRadius: 0 }
+              : { borderBottomLeftRadius: 0 },
+          ]}
+        >
           <View style={styles.headerRow}>
-            <Text style={styles.sender}>{item.sender}</Text>
+            {!isMe && <Text style={styles.sender}>{item.sender}</Text>}
             <Text style={styles.time}>{item.time}</Text>
           </View>
           <Text style={styles.messageText}>{item.text}</Text>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
@@ -89,12 +110,6 @@ export default function ChatDetailScreen() {
         </TouchableOpacity>
         <Text style={styles.title}>Chi tiết nhóm</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Ionicons name="call" size={24} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Ionicons name="videocam" size={24} color="#fff" />
-          </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerIcon}
             onPress={() => router.push("/chat/group-info")}
@@ -112,12 +127,16 @@ export default function ChatDetailScreen() {
       >
         <FlatList
           data={messages}
-          keyExtractor={(item, index) => item.id?.toString() || index.toString()}
+          keyExtractor={(item, index) =>
+            item.id?.toString() || index.toString()
+          }
           renderItem={renderMessage}
           contentContainerStyle={styles.messagesContainer}
           ListEmptyComponent={
             !loading && (
-              <Text style={{ color: "#999", textAlign: "center", marginTop: 20 }}>
+              <Text
+                style={{ color: "#999", textAlign: "center", marginTop: 20 }}
+              >
                 Chưa có tin nhắn nào
               </Text>
             )

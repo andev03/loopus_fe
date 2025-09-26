@@ -14,32 +14,13 @@ import { router } from "expo-router";
 import styles from "../createGroupScreen/CreateGroupScreen.styles";
 import { groupService } from "../../../services/groupService";
 import { getUser } from "../../../services/storageService";
-
-// Fake contact list
-const contacts = [
-  {
-    id: "1",
-    name: "Đặng Lê Anh",
-    time: "3 giờ trước",
-    avatar: "https://randomuser.me/api/portraits/men/1.jpg",
-  },
-  {
-    id: "2",
-    name: "Thư Đào",
-    time: "3 giờ trước",
-    avatar: "https://randomuser.me/api/portraits/women/2.jpg",
-  },
-  {
-    id: "3",
-    name: "Ngọc Nhi",
-    time: "3 giờ trước",
-    avatar: "https://randomuser.me/api/portraits/women/3.jpg",
-  },
-];
+import { findUserByEmail } from "../../../services/authService";
 
 function CreateGroupScreen() {
   const [groupName, setGroupName] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
+  const [contacts, setContacts] = useState([]); // danh sách member tìm được
+  const [searchEmail, setSearchEmail] = useState("");
 
   // Toggle chọn thành viên
   const toggleSelect = (id) => {
@@ -47,6 +28,39 @@ function CreateGroupScreen() {
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
+
+const handleAddByEmail = async () => {
+  if (!searchEmail) return;
+
+  const currentUser = await getUser(); // lấy user hiện tại
+  if (currentUser?.username === searchEmail.trim()) {
+    Alert.alert("Thông báo", "Không thể tự thêm chính mình");
+    return;
+  }
+
+  const res = await findUserByEmail(searchEmail.trim());
+  if (res.success && res.userId) {
+    const exists = contacts.some((c) => c.id === res.userId);
+    if (exists) {
+      Alert.alert("Thông báo", "Người dùng đã có trong danh sách");
+    } else {
+      setContacts((prev) => [
+        ...prev,
+        {
+          id: res.userId,
+          name: res.name,
+          email: res.email,
+          avatar: res.avatar,
+          time: "Vừa thêm",
+        },
+      ]);
+      setSearchEmail("");
+    }
+  } else {
+    Alert.alert("Thông báo", res.message || "Không tìm thấy user");
+  }
+};
+
 
   const renderItem = ({ item }) => {
     const isSelected = selectedIds.includes(item.id);
@@ -68,29 +82,32 @@ function CreateGroupScreen() {
     );
   };
 
-const handleCreateGroup = async () => {
+  const handleCreateGroup = async () => {
   const user = await getUser();
-  console.log("👉 User lấy từ AsyncStorage:", user);
-
   if (!user?.userId) {
-    console.log("❌ Không tìm thấy userId");
+    Alert.alert("Lỗi", "Không tìm thấy userId");
     return;
   }
 
-  const fakeMember1 = "11111111-1111-1111-1111-111111111111";
-  const fakeMember2 = "22222222-2222-2222-2222-222222222222";
+  // chỉ lấy danh sách được chọn, KHÔNG tự thêm mình
+  const userMemberIds = [...selectedIds];
 
   const payload = {
-    name: groupName || "Nhóm test",
+    name: groupName || "Nhóm mới",
     description: "Group được tạo từ app",
-    createdBy: user.userId,
-    userMemberIds: [user.userId, fakeMember1, fakeMember2], // ✅ ít nhất 2 thành viên
+    createdBy: user.userId,   // vẫn là mình
+    userMemberIds,            // chỉ có member được chọn
   };
 
   const res = await groupService.createGroup(payload);
-  console.log("👉 Kết quả tạo group:", res);
-};
 
+  if (res?.status === 200) {
+    Alert.alert("Thành công", "Tạo nhóm thành công!");
+    router.replace("/chat");
+  } else {
+    Alert.alert("Thất bại", res?.message || "Tạo nhóm thất bại");
+  }
+};
 
 
   return (
@@ -115,20 +132,26 @@ const handleCreateGroup = async () => {
         <Ionicons name="expand-outline" size={22} color="#888" />
       </View>
 
-      {/* Ô tìm kiếm */}
+      {/* Ô tìm kiếm email */}
       <View style={styles.searchBar}>
-        <Ionicons name="search-outline" size={18} color="#888" />
+        <Ionicons name="mail-outline" size={18} color="#888" />
         <TextInput
-          placeholder="Tìm tên hoặc số điện thoại"
+          placeholder="Nhập email để thêm thành viên"
           style={styles.searchInput}
           placeholderTextColor="#aaa"
+          value={searchEmail}
+          onChangeText={setSearchEmail}
+          onSubmitEditing={handleAddByEmail}
         />
+        <TouchableOpacity onPress={handleAddByEmail}>
+          <Ionicons name="add-circle-outline" size={24} color="#4CAF50" />
+        </TouchableOpacity>
       </View>
 
       {/* Danh sách contact */}
       <FlatList
         data={contacts}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
