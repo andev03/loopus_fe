@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -5,16 +6,165 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { useLocalSearchParams, router } from "expo-router";
+import { groupService } from "../../../services/groupService";
+import { getUser } from "../../../services/storageService";
 import styles from "./GroupInfoScreen.styles";
+import { Alert } from "react-native";
 
 export default function GroupInfoScreen() {
+  // Lấy params truyền vào (nếu có)
+  const params = useLocalSearchParams();
+  const groupIdParam = params?.groupId || null; // param tên groupId
+  const groupNameParam = params?.groupName || null; // optional: truyền tên để hiển thị nhanh
+
+  const [group, setGroup] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchGroup = async () => {
+      setLoading(true);
+      try {
+        const user = await getUser();
+        if (!user?.userId) {
+          console.warn("⚠️ Không tìm thấy userId trong AsyncStorage");
+          setLoading(false);
+          return;
+        }
+        const userId = user.userId;
+        console.log("🔑 UserId từ AsyncStorage:", userId);
+
+        // Gọi API lấy danh sách nhóm (hiện groupService chưa có getById nên lấy list rồi find)
+        const result = await groupService.getGroups(userId);
+        console.log(
+          "📋 Kết quả từ getGroups:",
+          JSON.stringify(result, null, 2)
+        );
+
+        if (result.success && result.data && Array.isArray(result.data.data)) {
+          const groups = result.data.data;
+          console.log(
+            "📋 Danh sách nhóm:",
+            groups.map((g) => ({
+              groupId: g.groupId,
+              name: g.name,
+              createdBy: g.createdBy,
+            }))
+          );
+
+          // Nếu có param groupId => tìm đúng nhóm đó
+          if (groupIdParam) {
+            const found = groups.find((g) => g.groupId === groupIdParam);
+            if (found) {
+              setGroup(found);
+              console.log("🔑 GroupId từ params, chọn:", found.groupId);
+              setLoading(false);
+              return;
+            } else {
+              console.warn(
+                "⚠️ Không tìm thấy groupId trong danh sách, sẽ fallback"
+              );
+            }
+          }
+
+          // Nếu không có params hoặc không tìm thấy => giữ logic cũ (ưu tiên name === "group" hoặc createdBy)
+          const currentGroup =
+            groups.find((g) => g.name === "group") ||
+            groups.find((g) => g.createdBy === userId) ||
+            groups[0] ||
+            null;
+
+          if (currentGroup) {
+            setGroup(currentGroup);
+            console.log(
+              "🔑 GroupId được chọn (fallback):",
+              currentGroup.groupId
+            );
+          } else {
+            console.log("⚠️ Không có nhóm nào trong danh sách");
+            setGroup(null);
+          }
+        } else {
+          console.log("❌ Dữ liệu từ API không hợp lệ hoặc không thành công:", {
+            success: result.success,
+            data: result.data,
+            error: result.error,
+          });
+        }
+      } catch (error) {
+        console.log("❌ Lỗi khi fetchGroups:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGroup();
+  }, [groupIdParam]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <ActivityIndicator
+          size="large"
+          color="#2ECC71"
+          style={{ flex: 1, justifyContent: "center" }}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  if (!group) {
+    // Nếu không có group nhưng có truyền groupNameParam thì hiển thị tạm groupNameParam
+    if (groupNameParam) {
+      return (
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.backButton}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.title}>Tùy chọn</Text>
+          </View>
+
+          <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+            <View style={styles.groupHeader}>
+              <Image
+                source={{
+                  uri: "https://randomuser.me/api/portraits/women/2.jpg",
+                }}
+                style={styles.avatar}
+              />
+              <Text style={styles.groupName}>{groupNameParam}</Text>
+              <TouchableOpacity>
+                <Ionicons name="pencil" size={16} color="#2ECC71" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ color: "#fff", textAlign: "center", marginTop: 20 }}>
+              Không tải được chi tiết nhóm, hiển thị tên tạm thời.
+            </Text>
+          </ScrollView>
+        </SafeAreaView>
+      );
+    }
+
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <Text style={{ textAlign: "center", marginTop: 20, color: "#fff" }}>
+          Không tìm thấy nhóm
+        </Text>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -26,19 +176,22 @@ export default function GroupInfoScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
-        {/* Avatar + Group name */}
         <View style={styles.groupHeader}>
           <Image
-            source={{ uri: "https://randomuser.me/api/portraits/women/2.jpg" }}
+            source={{
+              uri:
+                group.avatarUrl ||
+                "https://randomuser.me/api/portraits/women/2.jpg",
+            }}
             style={styles.avatar}
           />
-          <Text style={styles.groupName}>Nhóm cơm tấm</Text>
+          {/* Hiển thị group.name nếu có, nếu chưa có dùng tạm groupNameParam */}
+          <Text style={styles.groupName}>{group?.name || groupNameParam}</Text>
           <TouchableOpacity>
             <Ionicons name="pencil" size={16} color="#2ECC71" />
           </TouchableOpacity>
         </View>
 
-        {/* Actions row */}
         <View style={styles.actionRow}>
           <View style={styles.actionItem}>
             <View style={styles.iconCircle}>
@@ -52,7 +205,7 @@ export default function GroupInfoScreen() {
               onPress={() =>
                 router.push({
                   pathname: "/chat/add-member",
-                  params: { groupId: "123" },
+                  params: { groupId: group.groupId },
                 })
               }
             >
@@ -74,7 +227,6 @@ export default function GroupInfoScreen() {
           </View>
         </View>
 
-        {/* Photos block */}
         <View style={styles.photoBlock}>
           <TouchableOpacity style={styles.photoHeader}>
             <Ionicons name="images" size={20} color="#666" />
@@ -111,7 +263,6 @@ export default function GroupInfoScreen() {
           </ScrollView>
         </View>
 
-        {/* Options with arrow > */}
         <TouchableOpacity style={styles.option}>
           <Ionicons name="people" size={20} color="#666" />
           <Text style={styles.optionText}>Xem thành viên</Text>
@@ -159,13 +310,51 @@ export default function GroupInfoScreen() {
           />
         </TouchableOpacity>
 
-        {/* Leave */}
-        <View style={[styles.option, { marginTop: 20 }]}>
+        <TouchableOpacity
+          style={[styles.option, { marginTop: 20 }]}
+          onPress={async () => {
+            Alert.alert(
+              "Rời khỏi nhóm",
+              "Bạn có chắc muốn rời khỏi nhóm này?",
+              [
+                { text: "Hủy", style: "cancel" },
+                {
+                  text: "Rời nhóm",
+                  style: "destructive",
+                  onPress: async () => {
+                    try {
+                      const user = await getUser();
+                      if (!user?.userId || !group?.groupId) return;
+
+                      const res = await groupService.leaveGroup(
+                        group.groupId,
+                        user.userId
+                      );
+
+                      if (res.success) {
+                        Alert.alert("Thông báo", "Bạn đã rời nhóm thành công");
+                        router.replace("/(tabs)/chat"); 
+                        
+                      } else {
+                        Alert.alert(
+                          "Lỗi",
+                          "Không thể rời nhóm, vui lòng thử lại"
+                        );
+                      }
+                    } catch (err) {
+                      Alert.alert("Lỗi", err.message || "Có lỗi xảy ra");
+                    }
+                  },
+                },
+              ]
+            );
+          }}
+        >
           <Ionicons name="exit" size={20} color="red" />
           <Text style={[styles.optionText, { color: "red" }]}>
             Rời khỏi nhóm
           </Text>
-        </View>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );

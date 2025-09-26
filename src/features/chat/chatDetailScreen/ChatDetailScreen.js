@@ -65,41 +65,40 @@ export default function ChatDetailScreen() {
   };
 
   const renderMessage = ({ item }) => {
-  const isMe = item.isCurrentUser;
-  const avatarSource = item.avatarUrl ? { uri: item.avatarUrl } : require("../../../assets/images/default-avatar.jpg");
+    const isMe = item.isCurrentUser;
+    const avatarSource = item.avatarUrl
+      ? { uri: item.avatarUrl }
+      : require("../../../assets/images/default-avatar.jpg");
 
-  return (
-    <View
-      style={[
-        styles.messageRow,
-        isMe ? { justifyContent: "flex-end" } : { justifyContent: "flex-start" },
-      ]}
-    >
-      {!isMe && (
-        <Image
-          source={avatarSource}
-          style={styles.avatar}
-        />
-      )}
-
+    return (
       <View
         style={[
-          styles.bubble,
-          { backgroundColor: "#fff" },
+          styles.messageRow,
           isMe
-            ? { borderBottomRightRadius: 0, alignSelf: "flex-end" }
-            : { borderBottomLeftRadius: 0, alignSelf: "flex-start" },
+            ? { justifyContent: "flex-end" }
+            : { justifyContent: "flex-start" },
         ]}
       >
-        <View style={styles.headerRow}>
-          {!isMe && <Text style={styles.sender}>{item.sender}</Text>}
-          <Text style={styles.time}>{item.time}</Text>
+        {!isMe && <Image source={avatarSource} style={styles.avatar} />}
+
+        <View
+          style={[
+            styles.bubble,
+            { backgroundColor: "#fff" },
+            isMe
+              ? { borderBottomRightRadius: 0, alignSelf: "flex-end" }
+              : { borderBottomLeftRadius: 0, alignSelf: "flex-start" },
+          ]}
+        >
+          <View style={styles.headerRow}>
+            {!isMe && <Text style={styles.sender}>{item.sender}</Text>}
+            <Text style={styles.time}>{item.time}</Text>
+          </View>
+          <Text style={styles.messageText}>{item.text}</Text>
         </View>
-        <Text style={styles.messageText}>{item.text}</Text>
       </View>
-    </View>
-  );
-};
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
@@ -115,7 +114,12 @@ export default function ChatDetailScreen() {
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.headerIcon}
-            onPress={() => router.push("/chat/group-info")}
+            onPress={() =>
+              router.push({
+                pathname: "/chat/group-info",
+                params: { groupId, groupName: /* nếu có sẵn */ "" },
+              })
+            }
           >
             <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
           </TouchableOpacity>
