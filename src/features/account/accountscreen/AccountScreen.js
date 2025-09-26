@@ -91,7 +91,10 @@ export default function AccountScreen() {
             <Text style={styles.menuText}>Cài đặt thông báo</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push("/account/feedback")}
+          >
             <Text style={styles.menuText}>Chia sẻ góp ý</Text>
           </TouchableOpacity>
         </View>
