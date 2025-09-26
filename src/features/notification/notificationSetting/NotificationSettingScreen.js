@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   Switch,
   TouchableOpacity,
@@ -30,8 +29,27 @@ export default function NotificationSettingsScreen() {
     survey: true,
   });
 
+  // Toggle 1 setting
   const toggleSwitch = (key) => {
     setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  // 👉 Hàm tắt tất cả
+  const turnOffAll = () => {
+    const allFalse = Object.keys(settings).reduce((acc, key) => {
+      acc[key] = false;
+      return acc;
+    }, {});
+    setSettings(allFalse);
+  };
+
+  // 👉 Hàm bật tất cả
+  const turnOnAll = () => {
+    const allTrue = Object.keys(settings).reduce((acc, key) => {
+      acc[key] = true;
+      return acc;
+    }, {});
+    setSettings(allTrue);
   };
 
   return (
@@ -42,10 +60,13 @@ export default function NotificationSettingsScreen() {
           <Ionicons name="arrow-back-outline" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Cài đặt thông báo</Text>
-        <View style={{ width: 24 }} /> 
+        <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView>
+      <ScrollView
+  contentContainerStyle={{ paddingBottom: 40 }}
+  showsVerticalScrollIndicator={false}
+>
         {/* Cài đặt chung */}
         <View style={styles.itemRow}>
           <Text style={styles.itemTitle}>Âm thông báo</Text>
@@ -138,10 +159,15 @@ export default function NotificationSettingsScreen() {
           onToggle={() => toggleSwitch("survey")}
         />
 
-        {/* Footer */}
-        <TouchableOpacity style={styles.footerBtn}>
-          <Text style={styles.footerText}>Tắt tất cả thông báo</Text>
-        </TouchableOpacity>
+        {/* Footer: 2 nút */}
+        <View style={{ flexDirection: "row", justifyContent: "space-around", marginVertical: 20 }}>
+          <TouchableOpacity style={styles.footerBtn} onPress={turnOffAll}>
+            <Text style={styles.footerText}>Tắt tất cả</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.footerBtn} onPress={turnOnAll}>
+            <Text style={styles.footerText}>Bật tất cả</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
