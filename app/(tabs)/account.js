@@ -1,9 +1,5 @@
-import { View, Text } from "react-native";
+import AccountScreen from "../../src/features/account/accountscreen/AccountScreen";
 
-export default function AccountScreen() {
-  return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <Text>Tài khoản</Text>
-    </View>
-  );
+export default function Account() {
+  return <AccountScreen />;
 }
