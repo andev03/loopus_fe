@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { router } from "expo-router";
 
 export default function HelpCenterScreen() {
   const navigation = useNavigation();
@@ -11,7 +12,7 @@ export default function HelpCenterScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => router.replace("/(tabs)/account")}>
           <Ionicons name="arrow-back-outline" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Trung tâm trợ giúp</Text>
@@ -43,7 +44,7 @@ export default function HelpCenterScreen() {
         </TouchableOpacity>
 
         {/* Các vấn đề thường gặp */}
-         <TouchableOpacity
+        <TouchableOpacity
           style={styles.menuItem}
           onPress={() => navigation.navigate("notification/faq")} // 👈 điều hướng
         >

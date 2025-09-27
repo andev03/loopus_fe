@@ -87,4 +87,20 @@ export const groupService = {
     return { success: false, error };
   }
 },
+
+viewMembers: async (groupId) => {
+  try {
+    const res = await axios.get(`${API_URL}/view-member`, {
+      params: { groupId },
+    });
+    if (res.status === 200) {
+      console.log("✅ Gọi API view-member thành công:", res.data);
+      return { success: true, data: res.data };
+    }
+    return { success: false, data: res.data };
+  } catch (error) {
+    console.error("❌ Lỗi gọi API view-member:", error.response?.data || error.message);
+    return { success: false, error };
+  }
+},
 };

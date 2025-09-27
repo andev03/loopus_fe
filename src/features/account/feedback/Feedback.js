@@ -1,17 +1,21 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { router } from "expo-router";
 
 export default function FeedbackScreen() {
-  const navigation = useNavigation();
-
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => router.replace("/(tabs)/account")}>
           <Ionicons name="arrow-back-outline" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Chia sẻ góp ý</Text>
@@ -21,7 +25,11 @@ export default function FeedbackScreen() {
       <ScrollView style={styles.content}>
         {/* Greeting */}
         <View style={styles.greetingBox}>
-          <MaterialCommunityIcons name="email-outline" size={70} color="#2ECC71" />
+          <MaterialCommunityIcons
+            name="email-outline"
+            size={70}
+            color="#2ECC71"
+          />
           <Text style={styles.hello}>Xin chào, Công Phát</Text>
           <Text style={styles.subHello}>
             Chúng tôi luôn luôn sẵn sàng lắng nghe góp ý phản hồi của bạn!
@@ -29,7 +37,10 @@ export default function FeedbackScreen() {
         </View>
 
         {/* Góp ý cải thiện */}
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push("/account/improve-feedback")}
+        >
           <View style={{ flex: 1 }}>
             <Text style={styles.menuTitle}>Góp ý cải thiện</Text>
             <Text style={styles.menuDesc}>
@@ -40,11 +51,15 @@ export default function FeedbackScreen() {
         </TouchableOpacity>
 
         {/* Báo lỗi ứng dụng */}
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push("/account/bug-report")}
+        >
           <View style={{ flex: 1 }}>
             <Text style={styles.menuTitle}>Báo lỗi ứng dụng</Text>
             <Text style={styles.menuDesc}>
-              Báo lỗi kỹ thuật, màn hình trắng, tính năng không hoạt động, lỗi font chữ,...
+              Báo lỗi kỹ thuật, màn hình trắng, tính năng không hoạt động, lỗi
+              font chữ,...
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#999" />
