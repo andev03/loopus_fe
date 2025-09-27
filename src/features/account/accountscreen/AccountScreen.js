@@ -79,7 +79,10 @@ export default function AccountScreen() {
             <Text style={styles.menuText}>Trung tâm trợ giúp</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push("/account/app-info")} 
+          >
             <Text style={styles.menuText}>Thông tin chung</Text>
           </TouchableOpacity>
 

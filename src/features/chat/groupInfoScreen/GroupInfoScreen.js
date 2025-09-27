@@ -218,13 +218,7 @@ export default function GroupInfoScreen() {
               <Ionicons name="image" size={24} color="#444" />
             </View>
             <Text style={styles.actionText}>Đổi hình nền</Text>
-          </View>
-          <View style={styles.actionItem}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="notifications-off" size={24} color="#444" />
-            </View>
-            <Text style={styles.actionText}>Tắt thông báo</Text>
-          </View>
+          </View>       
         </View>
 
         <View style={styles.photoBlock}>
@@ -263,20 +257,17 @@ export default function GroupInfoScreen() {
           </ScrollView>
         </View>
 
-        <TouchableOpacity style={styles.option}>
+        <TouchableOpacity
+          style={styles.option}
+          onPress={() =>
+            router.push({
+              pathname: "/chat/view-members",
+              params: { groupId: group.groupId },
+            })
+          }
+        >
           <Ionicons name="people" size={20} color="#666" />
           <Text style={styles.optionText}>Xem thành viên</Text>
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color="#ccc"
-            style={styles.arrow}
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.option}>
-          <Ionicons name="person-add-outline" size={20} color="#666" />
-          <Text style={styles.optionText}>Duyệt thành viên mới</Text>
           <Ionicons
             name="chevron-forward"
             size={20}
@@ -291,17 +282,6 @@ export default function GroupInfoScreen() {
         >
           <Ionicons name="qr-code" size={20} color="#666" />
           <Text style={styles.optionText}>Mã QR & Link Nhóm</Text>
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color="#ccc"
-            style={styles.arrow}
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.option}>
-          <Ionicons name="alert-circle" size={20} color="#666" />
-          <Text style={styles.optionText}>Báo Cáo</Text>
           <Ionicons
             name="chevron-forward"
             size={20}
@@ -333,8 +313,7 @@ export default function GroupInfoScreen() {
 
                       if (res.success) {
                         Alert.alert("Thông báo", "Bạn đã rời nhóm thành công");
-                        router.replace("/(tabs)/chat"); 
-                        
+                        router.replace("/(tabs)/chat");
                       } else {
                         Alert.alert(
                           "Lỗi",
