@@ -12,14 +12,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
+// Import ảnh mặc định từ assets
+import DefaultAvatar from "../../../assets/images/default-avatar.jpg"; // Sử dụng ảnh mặc định chung
+
 import styles from "../chatScreen/ChatScreen.styles";
 import { groupService } from "../../../services/groupService"; // <-- import service
 import { getUser } from "../../../services/storageService";
 import { chatService } from "../../../services/chatService";
+
 function ChatScreen() {
   const [groups, setGroups] = useState([]); // dữ liệu nhóm
   const [loading, setLoading] = useState(true); // trạng thái loading
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState(""); // Thêm state cho tìm kiếm
 
   useEffect(() => {
     const fetchGroups = async () => {
@@ -43,7 +48,7 @@ function ChatScreen() {
 
             if (chatRes.success && chatRes.data.length > 0) {
               const lastChat = chatRes.data[chatRes.data.length - 1];
-              lastMessage = lastChat.text; // ✅ đúng field
+              lastMessage = lastChat.message; // Sử dụng "message" theo log API
               lastTime = lastChat.createdAt;
             }
 
@@ -67,13 +72,18 @@ function ChatScreen() {
     fetchGroups();
   }, []);
 
+  // Lọc danh sách nhóm dựa trên searchQuery
+  const filteredGroups = groups.filter((group) =>
+    group.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const renderItem = ({ item }) => (
     <TouchableOpacity
       style={styles.item}
       onPress={() => router.push(`/chat/${item.groupId}`)}
     >
       <Image
-        source={{ uri: item.avatarUrl || "https://via.placeholder.com/150" }}
+        source={item.avatarUrl ? { uri: item.avatarUrl } : DefaultAvatar} // Sử dụng DefaultAvatar làm ảnh nhóm mặc định
         style={styles.avatar}
       />
       <View style={styles.textContainer}>
@@ -103,6 +113,8 @@ function ChatScreen() {
             placeholder="Tìm kiếm nhóm"
             placeholderTextColor="#e6e6e6"
             style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery} // Cập nhật state khi nhập
           />
         </View>
 
@@ -127,13 +139,15 @@ function ChatScreen() {
         </Text>
       ) : (
         <FlatList
-          data={groups}
+          data={filteredGroups} // Sử dụng danh sách đã lọc
           keyExtractor={(item) => item.groupId}
           renderItem={renderItem}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           ListEmptyComponent={
             <Text style={{ color: "#fff", textAlign: "center", marginTop: 20 }}>
-              Chưa có nhóm nào
+              {searchQuery && filteredGroups.length === 0
+                ? "Không tìm thấy nhóm"
+                : "Chưa có nhóm nào"}
             </Text>
           }
         />

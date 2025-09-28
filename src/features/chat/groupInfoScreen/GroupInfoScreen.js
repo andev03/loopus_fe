@@ -7,6 +7,9 @@ import {
   Image,
   ScrollView,
   ActivityIndicator,
+  Alert,
+  Modal,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,16 +17,19 @@ import { useLocalSearchParams, router } from "expo-router";
 import { groupService } from "../../../services/groupService";
 import { getUser } from "../../../services/storageService";
 import styles from "./GroupInfoScreen.styles";
-import { Alert } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 
 export default function GroupInfoScreen() {
-  // Lấy params truyền vào (nếu có)
   const params = useLocalSearchParams();
-  const groupIdParam = params?.groupId || null; // param tên groupId
-  const groupNameParam = params?.groupName || null; // optional: truyền tên để hiển thị nhanh
+  const groupIdParam = params?.groupId || null;
+  const groupNameParam = params?.groupName || null;
 
   const [group, setGroup] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // state cho modal đổi tên
+  const [renameVisible, setRenameVisible] = useState(false);
+  const [newName, setNewName] = useState("");
 
   useEffect(() => {
     const fetchGroup = async () => {
@@ -36,64 +42,25 @@ export default function GroupInfoScreen() {
           return;
         }
         const userId = user.userId;
-        console.log("🔑 UserId từ AsyncStorage:", userId);
 
-        // Gọi API lấy danh sách nhóm (hiện groupService chưa có getById nên lấy list rồi find)
         const result = await groupService.getGroups(userId);
-        console.log(
-          "📋 Kết quả từ getGroups:",
-          JSON.stringify(result, null, 2)
-        );
-
-        if (result.success && result.data && Array.isArray(result.data.data)) {
+        if (result.success && Array.isArray(result.data?.data)) {
           const groups = result.data.data;
-          console.log(
-            "📋 Danh sách nhóm:",
-            groups.map((g) => ({
-              groupId: g.groupId,
-              name: g.name,
-              createdBy: g.createdBy,
-            }))
-          );
+          let selected = null;
 
-          // Nếu có param groupId => tìm đúng nhóm đó
           if (groupIdParam) {
-            const found = groups.find((g) => g.groupId === groupIdParam);
-            if (found) {
-              setGroup(found);
-              console.log("🔑 GroupId từ params, chọn:", found.groupId);
-              setLoading(false);
-              return;
-            } else {
-              console.warn(
-                "⚠️ Không tìm thấy groupId trong danh sách, sẽ fallback"
-              );
-            }
+            selected = groups.find((g) => g.groupId === groupIdParam);
           }
-
-          // Nếu không có params hoặc không tìm thấy => giữ logic cũ (ưu tiên name === "group" hoặc createdBy)
-          const currentGroup =
-            groups.find((g) => g.name === "group") ||
-            groups.find((g) => g.createdBy === userId) ||
-            groups[0] ||
-            null;
-
-          if (currentGroup) {
-            setGroup(currentGroup);
-            console.log(
-              "🔑 GroupId được chọn (fallback):",
-              currentGroup.groupId
-            );
-          } else {
-            console.log("⚠️ Không có nhóm nào trong danh sách");
-            setGroup(null);
+          if (!selected) {
+            selected =
+              groups.find((g) => g.name === "group") ||
+              groups.find((g) => g.createdBy === userId) ||
+              groups[0] ||
+              null;
           }
+          setGroup(selected);
         } else {
-          console.log("❌ Dữ liệu từ API không hợp lệ hoặc không thành công:", {
-            success: result.success,
-            data: result.data,
-            error: result.error,
-          });
+          setGroup(null);
         }
       } catch (error) {
         console.log("❌ Lỗi khi fetchGroups:", error);
@@ -104,6 +71,38 @@ export default function GroupInfoScreen() {
 
     fetchGroup();
   }, [groupIdParam]);
+
+  // Hàm đổi tên nhóm
+  const handleRenameGroup = async () => {
+    const maxLength = 30;
+
+    if (!newName.trim()) {
+      Alert.alert("Lỗi", "Tên nhóm không được để trống");
+      return;
+    }
+    if (newName.length > maxLength) {
+      Alert.alert("Lỗi", `Tên nhóm không được vượt quá ${maxLength} ký tự`);
+      return;
+    }
+
+    try {
+      const payload = {
+        groupId: group.groupId,
+        groupName: newName,
+        description: group.description || "",
+      };
+      const res = await groupService.updateGroupInfo(payload);
+      if (res.success) {
+        Alert.alert("Thành công", "Đổi tên nhóm thành công");
+        setGroup({ ...group, name: newName });
+        setRenameVisible(false);
+      } else {
+        Alert.alert("Lỗi", res.error?.message || "Không thể đổi tên nhóm");
+      }
+    } catch (err) {
+      Alert.alert("Lỗi", err.message || "Có lỗi xảy ra");
+    }
+  };
 
   if (loading) {
     return (
@@ -118,42 +117,6 @@ export default function GroupInfoScreen() {
   }
 
   if (!group) {
-    // Nếu không có group nhưng có truyền groupNameParam thì hiển thị tạm groupNameParam
-    if (groupNameParam) {
-      return (
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
-              <Ionicons name="arrow-back" size={24} color="#fff" />
-            </TouchableOpacity>
-            <Text style={styles.title}>Tùy chọn</Text>
-          </View>
-
-          <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
-            <View style={styles.groupHeader}>
-              <Image
-                source={{
-                  uri: "https://randomuser.me/api/portraits/women/2.jpg",
-                }}
-                style={styles.avatar}
-              />
-              <Text style={styles.groupName}>{groupNameParam}</Text>
-              <TouchableOpacity>
-                <Ionicons name="pencil" size={16} color="#2ECC71" />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={{ color: "#fff", textAlign: "center", marginTop: 20 }}>
-              Không tải được chi tiết nhóm, hiển thị tên tạm thời.
-            </Text>
-          </ScrollView>
-        </SafeAreaView>
-      );
-    }
-
     return (
       <SafeAreaView style={styles.safeArea}>
         <Text style={{ textAlign: "center", marginTop: 20, color: "#fff" }}>
@@ -165,6 +128,7 @@ export default function GroupInfoScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -176,6 +140,7 @@ export default function GroupInfoScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+        {/* Group Info */}
         <View style={styles.groupHeader}>
           <Image
             source={{
@@ -185,13 +150,18 @@ export default function GroupInfoScreen() {
             }}
             style={styles.avatar}
           />
-          {/* Hiển thị group.name nếu có, nếu chưa có dùng tạm groupNameParam */}
           <Text style={styles.groupName}>{group?.name || groupNameParam}</Text>
-          <TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              setNewName(group?.name || "");
+              setRenameVisible(true);
+            }}
+          >
             <Ionicons name="pencil" size={16} color="#2ECC71" />
           </TouchableOpacity>
         </View>
 
+        {/* Action Rows */}
         <View style={styles.actionRow}>
           <View style={styles.actionItem}>
             <View style={styles.iconCircle}>
@@ -214,49 +184,48 @@ export default function GroupInfoScreen() {
             <Text style={styles.actionText}>Thêm thành viên</Text>
           </View>
           <View style={styles.actionItem}>
-            <View style={styles.iconCircle}>
+            <TouchableOpacity
+              style={styles.iconCircle}
+              onPress={async () => {
+                // Mở picker chọn ảnh
+                const result = await ImagePicker.launchImageLibraryAsync({
+                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                  allowsEditing: true,
+                  aspect: [1, 1],
+                  quality: 0.8,
+                });
+
+                if (!result.canceled) {
+                  const fileUri = result.assets[0].uri;
+                  console.log("📷 File URI:", fileUri);
+
+                  try {
+                    const res = await groupService.updateGroupAvatar(
+                      group.groupId,
+                      fileUri
+                    );
+                    if (res.success) {
+                      Alert.alert("Thành công", "Đổi ảnh nhóm thành công");
+                      setGroup({ ...group, avatarUrl: fileUri }); // update UI
+                    } else {
+                      Alert.alert("Lỗi", "Không thể đổi ảnh nhóm");
+                    }
+                  } catch (err) {
+                    Alert.alert(
+                      "Lỗi",
+                      err.message || "Có lỗi xảy ra khi đổi ảnh nhóm"
+                    );
+                  }
+                }
+              }}
+            >
               <Ionicons name="image" size={24} color="#444" />
-            </View>
-            <Text style={styles.actionText}>Đổi hình nền</Text>
-          </View>       
+            </TouchableOpacity>
+            <Text style={styles.actionText}>Đổi ảnh nhóm</Text>
+          </View>
         </View>
 
-        <View style={styles.photoBlock}>
-          <TouchableOpacity style={styles.photoHeader}>
-            <Ionicons name="images" size={20} color="#666" />
-            <Text style={styles.optionText}>Ảnh & video</Text>
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color="#ccc"
-              style={styles.arrow}
-            />
-          </TouchableOpacity>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.photoRow}
-          >
-            <Image
-              source={{ uri: "https://picsum.photos/200" }}
-              style={styles.photo}
-            />
-            <Image
-              source={{ uri: "https://picsum.photos/201" }}
-              style={styles.photo}
-            />
-            <Image
-              source={{ uri: "https://picsum.photos/202" }}
-              style={styles.photo}
-            />
-            <Image
-              source={{ uri: "https://picsum.photos/203" }}
-              style={styles.photo}
-            />
-          </ScrollView>
-        </View>
-
+        {/* Các option khác */}
         <TouchableOpacity
           style={styles.option}
           onPress={() =>
@@ -310,7 +279,6 @@ export default function GroupInfoScreen() {
                         group.groupId,
                         user.userId
                       );
-
                       if (res.success) {
                         Alert.alert("Thông báo", "Bạn đã rời nhóm thành công");
                         router.replace("/(tabs)/chat");
@@ -335,6 +303,55 @@ export default function GroupInfoScreen() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Modal đổi tên nhóm */}
+      <Modal transparent visible={renameVisible} animationType="fade">
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 20,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: 10,
+              width: "100%",
+              padding: 20,
+            }}
+          >
+            <Text style={{ fontSize: 16, marginBottom: 10 }}>Đổi tên nhóm</Text>
+            <TextInput
+              value={newName}
+              onChangeText={setNewName}
+              placeholder="Nhập tên mới"
+              style={{
+                borderWidth: 1,
+                borderColor: "#ccc",
+                borderRadius: 8,
+                padding: 10,
+                marginBottom: 15,
+              }}
+            />
+            <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+              <TouchableOpacity
+                onPress={() => setRenameVisible(false)}
+                style={{ marginRight: 15 }}
+              >
+                <Text style={{ color: "red" }}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleRenameGroup}>
+                <Text style={{ color: "#2ECC71", fontWeight: "bold" }}>
+                  Lưu
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
