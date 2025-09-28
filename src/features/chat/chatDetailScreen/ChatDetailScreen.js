@@ -18,11 +18,12 @@ import { chatService } from "../../../services/chatService";
 import { getUser } from "../../../services/storageService";
 
 export default function ChatDetailScreen() {
-  const { id: groupId } = useLocalSearchParams(); // groupId được truyền từ list
+  const { id: groupId } = useLocalSearchParams();
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState("");
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showMenu, setShowMenu] = useState(false);
 
   // Load user + tin nhắn nhóm
   useEffect(() => {
@@ -33,10 +34,9 @@ export default function ChatDetailScreen() {
 
         const res = await chatService.getChatsByGroup(groupId, u.userId);
         if (res.success) {
-          // thêm flag isCurrentUser vào mỗi message
           const mapped = res.data.map((m) => ({
             ...m,
-            isCurrentUser: m.sender === "Bạn", // hoặc check m.userId === u.userId nếu có
+            isCurrentUser: m.sender === "Bạn",
           }));
           setMessages(mapped);
         }
@@ -52,12 +52,10 @@ export default function ChatDetailScreen() {
 
   const handleSend = async () => {
     if (!inputText.trim() || !user) return;
-
     const text = inputText.trim();
 
     const res = await chatService.sendMessage(groupId, user.userId, text);
     if (res.success && res.data) {
-      // Thêm cờ isCurrentUser cho tin nhắn gửi đi
       const newMsg = { ...res.data, isCurrentUser: true };
       setMessages((prev) => [...prev, newMsg]);
       setInputText("");
@@ -74,13 +72,10 @@ export default function ChatDetailScreen() {
       <View
         style={[
           styles.messageRow,
-          isMe
-            ? { justifyContent: "flex-end" }
-            : { justifyContent: "flex-start" },
+          isMe ? { justifyContent: "flex-end" } : { justifyContent: "flex-start" },
         ]}
       >
         {!isMe && <Image source={avatarSource} style={styles.avatar} />}
-
         <View
           style={[
             styles.bubble,
@@ -114,12 +109,10 @@ export default function ChatDetailScreen() {
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.headerIcon}
-            onPress={() =>
-              router.push({
-                pathname: "/chat/group-info",
-                params: { groupId, groupName: /* nếu có sẵn */ "" },
-              })
-            }
+            onPress={() => router.push({
+              pathname: "/chat/group-info",
+              params: { groupId, groupName: "" },
+            })}
           >
             <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
           </TouchableOpacity>
@@ -134,25 +127,26 @@ export default function ChatDetailScreen() {
       >
         <FlatList
           data={messages}
-          keyExtractor={(item, index) =>
-            item.id?.toString() || index.toString()
-          }
+          keyExtractor={(item, index) => item.id?.toString() || index.toString()}
           renderItem={renderMessage}
           contentContainerStyle={styles.messagesContainer}
           ListEmptyComponent={
             !loading && (
-              <Text
-                style={{ color: "#999", textAlign: "center", marginTop: 20 }}
-              >
+              <Text style={{ color: "#999", textAlign: "center", marginTop: 20 }}>
                 Chưa có tin nhắn nào
               </Text>
             )
           }
         />
 
-        {/* Ô nhập tin nhắn */}
+        {/* Ô nhập + nút + */}
         <SafeAreaView edges={["bottom"]} style={{ backgroundColor: "#fff" }}>
           <View style={styles.inputContainer}>
+            {/* Nút + để bật/tắt menu */}
+            <TouchableOpacity onPress={() => setShowMenu((prev) => !prev)}>
+              <Ionicons name="add-circle" size={28} color="#2ECC71" />
+            </TouchableOpacity>
+
             <TextInput
               placeholder="Gửi tin nhắn"
               style={styles.input}
@@ -165,6 +159,40 @@ export default function ChatDetailScreen() {
               <Ionicons name="send" size={22} color="#2ECC71" />
             </TouchableOpacity>
           </View>
+
+          {/* Menu xổ xuống */}
+          {showMenu && (
+            <View style={styles.menuContainer}>
+              <TouchableOpacity style={styles.menuRow}>
+                <Ionicons name="camera" size={20} color="#2ECC71" style={styles.menuIcon}/>
+                <Text style={styles.menuText}>Máy ảnh</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuRow}>
+                <Ionicons name="image" size={20} color="#2ECC71" style={styles.menuIcon}/>
+                <Text style={styles.menuText}>Ảnh</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuRow}>
+                <Ionicons name="mic" size={20} color="#2ECC71" style={styles.menuIcon}/>
+                <Text style={styles.menuText}>Ghi âm</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuRow} onPress={() => router.push("/chat/group-calendar")}>
+                <Ionicons name="calendar" size={20} color="#2ECC71" style={styles.menuIcon}/>
+                <Text style={styles.menuText}>Lịch nhóm</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuRow} onPress={() => router.push("/chat/create-poll")}>
+                <Ionicons name="list" size={20} color="#2ECC71" style={styles.menuIcon}/>
+                <Text style={styles.menuText}>Bình chọn</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuRow} onPress={() => router.push("/chat/create-split-bill")}>
+                <Ionicons name="cash" size={20} color="#2ECC71" style={styles.menuIcon}/>
+                <Text style={styles.menuText}>Chia tiền</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuRow} onPress={() => router.push("/chat/create-reminder")}>
+                <Ionicons name="alarm" size={20} color="#2ECC71" style={styles.menuIcon}/>
+                <Text style={styles.menuText}>Nhắc nợ</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </SafeAreaView>
       </KeyboardAvoidingView>
     </SafeAreaView>

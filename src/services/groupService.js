@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_URL = "https://loopus.nguyenhoangan.site/api/groups";
+const API_URL = "https://loopus.nguyenhoangan.site/api/groups"; 
+const API_SINGLE = process.env.EXPO_PUBLIC_API_GROUP;
 
 export const groupService = {
   getGroups: async (userId) => {
@@ -100,6 +101,74 @@ viewMembers: async (groupId) => {
     return { success: false, data: res.data };
   } catch (error) {
     console.error("❌ Lỗi gọi API view-member:", error.response?.data || error.message);
+    return { success: false, error };
+  }
+},
+
+updateGroupInfo: async (data) => {
+  try {
+    console.log("📦 Payload update group:", data);
+    const res = await axios.put(`${API_SINGLE}/update-information`, data, {
+      headers: { "Content-Type": "application/json" }
+    });
+
+    if (res.status === 200) {
+      console.log("✅ Update group thành công:", res.data);
+      return { success: true, data: res.data };
+    } else {
+      console.log("⚠️ Update group trả về status:", res.status);
+      return { success: false, data: res.data };
+    }
+  } catch (error) {
+    console.error("❌ Lỗi update group:", error.response?.data || error.message);
+    return { success: false, error };
+  }
+},
+
+getGroupById: async (groupName, userId) => {
+  try {
+    const res = await axios.get(API_SINGLE, {
+      params: { groupName, userId },
+    });
+    if (res.status === 200) {
+      console.log("✅ getGroupById:", res.data);
+      return { success: true, data: res.data };
+    }
+    return { success: false, data: res.data };
+  } catch (error) {
+    console.error("❌ getGroupById error:", error.response?.data || error.message);
+    return { success: false, error };
+  }
+},
+
+updateGroupAvatar: async (groupId, fileUri) => {
+  try {
+    const formData = new FormData();
+    formData.append("file", {
+      uri: fileUri,
+      name: "avatar.jpg",
+      type: "image/jpeg",
+    });
+
+    const res = await axios.put(
+      `${API_SINGLE}/update-avatar?groupId=${groupId}`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    if (res.status === 200) {
+      console.log("✅ Update avatar thành công:", res.data);
+      return { success: true, data: res.data };
+    } else {
+      console.log("⚠️ Update avatar trả về:", res.status);
+      return { success: false, data: res.data };
+    }
+  } catch (error) {
+    console.error("❌ Lỗi update avatar:", error.response?.data || error.message);
     return { success: false, error };
   }
 },
