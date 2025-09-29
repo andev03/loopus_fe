@@ -10,10 +10,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import styles from "./CreatePoll.styles";
 
 export default function CreatePollScreen() {
+  const { groupId } = useLocalSearchParams(); // Lấy groupId từ params
   const [title, setTitle] = useState("");
   const [options, setOptions] = useState(["", ""]);
 
@@ -33,10 +34,25 @@ export default function CreatePollScreen() {
   };
 
   const handleSubmit = () => {
-    const poll = { title, options: options.filter((o) => o.trim() !== "") };
+    if (!groupId) {
+      alert("Không tìm thấy groupId, vui lòng thử lại");
+      console.log("❌ Lỗi: groupId is undefined");
+      return;
+    }
+
+    const poll = { 
+      id: Date.now().toString(),
+      type: "poll",
+      title, 
+      options: options.filter((o) => o.trim() !== "").map(opt => ({
+        text: opt,
+        votes: [], // danh sách userId đã vote
+      }))
+    };
+
     router.push({
-      pathname: "/chat/[id]",
-      params: { poll: JSON.stringify(poll), id: "1" },
+      pathname: `/chat/${groupId}`,
+      params: { poll: JSON.stringify(poll) },
     });
   };
 
@@ -78,7 +94,7 @@ export default function CreatePollScreen() {
           {/* <-- Giữ nguyên ô nhập câu hỏi như bạn yêu cầu --> */}
           <TextInput
             style={styles.input}
-            placeholder="Nhập câu hỏi..."
+            placeholder="Nhập nội dung bình chọn..."
             value={title}
             onChangeText={setTitle}
           />
@@ -94,7 +110,7 @@ export default function CreatePollScreen() {
               />
               <TextInput
                 style={styles.optionInput}
-                placeholder={`Thêm ý kiến ${idx + 1}`}
+                placeholder={`Bình chọn ${idx + 1}`}
                 value={opt}
                 onChangeText={(text) => handleChangeOption(text, idx)}
                 underlineColorAndroid="transparent"
@@ -111,7 +127,7 @@ export default function CreatePollScreen() {
           {/* add option */}
           <TouchableOpacity style={styles.addRow} onPress={handleAddOption}>
             <Ionicons name="add-circle-outline" size={20} color="#2ECC71" />
-            <Text style={styles.addOption}>  Thêm ý kiến</Text>
+            <Text style={styles.addOption}>  Thêm bình chọn</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -123,4 +139,3 @@ export default function CreatePollScreen() {
     </SafeAreaView>
   );
 }
-

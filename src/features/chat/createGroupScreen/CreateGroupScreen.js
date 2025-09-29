@@ -89,15 +89,18 @@ const handleAddByEmail = async () => {
     return;
   }
 
-  // chỉ lấy danh sách được chọn, KHÔNG tự thêm mình
-  const userMemberIds = [...selectedIds];
+  // thêm cả người tạo vào danh sách thành viên
+  const userMemberIds = [...selectedIds, user.userId];
 
   const payload = {
     name: groupName || "Nhóm mới",
     description: "Group được tạo từ app",
-    createdBy: user.userId,   // vẫn là mình
-    userMemberIds,            // chỉ có member được chọn
+    createdBy: user.userId,
+    avatarUrl: "https://yourcdn.com/default-avatar.jpg", 
+    userMemberIds,
   };
+
+  console.log("📦 Payload gửi lên:", payload);
 
   const res = await groupService.createGroup(payload);
 
@@ -108,6 +111,7 @@ const handleAddByEmail = async () => {
     Alert.alert("Thất bại", res?.message || "Tạo nhóm thất bại");
   }
 };
+
 
 
   return (

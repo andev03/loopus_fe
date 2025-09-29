@@ -44,7 +44,7 @@ export const verifyForgotPasswordOtp = async (email, otp) => {
 
 export const resetPassword = async (email, password, confirmPassword) => {
   try {
-    const res = await axios.post(`${API_URL}/otp/reset-password`, {
+    const res = await axios.put(`${API_URL}/otp/reset-password`, {
       email,
       password,
       confirmPassword,
