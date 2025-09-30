@@ -13,18 +13,18 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
 // Import ảnh mặc định từ assets
-import DefaultAvatar from "../../../assets/images/default-avatar.jpg"; // Sử dụng ảnh mặc định chung
+import DefaultAvatar from "../../../assets/images/default-avatar.jpg";
 
 import styles from "../chatScreen/ChatScreen.styles";
-import { groupService } from "../../../services/groupService"; // <-- import service
+import { groupService } from "../../../services/groupService";
 import { getUser } from "../../../services/storageService";
 import { chatService } from "../../../services/chatService";
 
 function ChatScreen() {
-  const [groups, setGroups] = useState([]); // dữ liệu nhóm
-  const [loading, setLoading] = useState(true); // trạng thái loading
+  const [groups, setGroups] = useState([]); 
+  const [loading, setLoading] = useState(true); 
   const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState(""); // Thêm state cho tìm kiếm
+  const [searchQuery, setSearchQuery] = useState(""); 
 
   useEffect(() => {
     const fetchGroups = async () => {
@@ -43,12 +43,13 @@ function ChatScreen() {
         const groupsWithLastMsg = await Promise.all(
           groupsData.map(async (g) => {
             const chatRes = await chatService.getChatsByGroup(g.groupId);
+            let chats = chatRes.success ? chatRes.data : [];
             let lastMessage = null;
             let lastTime = null;
 
-            if (chatRes.success && chatRes.data.length > 0) {
-              const lastChat = chatRes.data[chatRes.data.length - 1];
-              lastMessage = lastChat.message; // Sử dụng "message" theo log API
+            if (Array.isArray(chats) && chats.length > 0) {
+              const lastChat = chats[chats.length - 1];
+              lastMessage = lastChat.text;
               lastTime = lastChat.createdAt;
             }
 
@@ -77,13 +78,22 @@ function ChatScreen() {
     group.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const renderItem = ({ item }) => (
+  const renderItem = ({ item }) => {
+  console.log("📦 Group item:", item);
+
+  return (
     <TouchableOpacity
       style={styles.item}
-      onPress={() => router.push(`/chat/${item.groupId}`)}
+      onPress={() => {
+        console.log("➡️ Điều hướng sang ChatDetail với groupId:", item.groupId);
+        router.push({
+          pathname: `/chat/[id]`,
+          params: { id: item.groupId }, // ép truyền đúng param id
+        });
+      }}
     >
       <Image
-        source={item.avatarUrl ? { uri: item.avatarUrl } : DefaultAvatar} // Sử dụng DefaultAvatar làm ảnh nhóm mặc định
+        source={item.avatarUrl ? { uri: item.avatarUrl } : DefaultAvatar}
         style={styles.avatar}
       />
       <View style={styles.textContainer}>
@@ -92,11 +102,15 @@ function ChatScreen() {
       </View>
       <Text style={styles.time}>
         {item.lastMessageTime
-          ? new Date(item.lastMessageTime).toLocaleTimeString()
+          ? new Date(item.lastMessageTime).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
           : ""}
       </Text>
     </TouchableOpacity>
   );
+};
 
   return (
     <SafeAreaView style={styles.container}>
@@ -114,7 +128,7 @@ function ChatScreen() {
             placeholderTextColor="#e6e6e6"
             style={styles.searchInput}
             value={searchQuery}
-            onChangeText={setSearchQuery} // Cập nhật state khi nhập
+            onChangeText={setSearchQuery}
           />
         </View>
 
@@ -139,7 +153,7 @@ function ChatScreen() {
         </Text>
       ) : (
         <FlatList
-          data={filteredGroups} // Sử dụng danh sách đã lọc
+          data={filteredGroups}
           keyExtractor={(item) => item.groupId}
           renderItem={renderItem}
           ItemSeparatorComponent={() => <View style={styles.separator} />}

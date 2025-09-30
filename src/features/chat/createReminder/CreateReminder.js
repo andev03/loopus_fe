@@ -60,41 +60,6 @@ export default function CreateReminderScreen() {
             style={styles.textInput}
           />
         </View>
-
-        {/* Nhắc cho */}
-        <View style={styles.inputRow}>
-          <Ionicons
-            name="lock-closed-outline"
-            size={22}
-            color="#666"
-            style={styles.icon}
-          />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.label}>Nhắc cho</Text>
-            <TouchableOpacity
-              onPress={() => setTarget("me")}
-              style={styles.radioRow}
-            >
-              <Ionicons
-                name={target === "me" ? "radio-button-on" : "radio-button-off"}
-                size={18}
-                color="#2ECC71"
-              />
-              <Text style={styles.radioText}>Chỉ mình tôi</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setTarget("group")}
-              style={styles.radioRow}
-            >
-              <Ionicons
-                name={target === "group" ? "radio-button-on" : "radio-button-off"}
-                size={18}
-                color="#2ECC71"
-              />
-              <Text style={styles.radioText}>Cả nhóm</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
       </View>
 
       {/* Button */}

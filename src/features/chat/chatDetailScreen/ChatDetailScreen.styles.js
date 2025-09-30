@@ -184,6 +184,129 @@ pollCard: {
     fontSize: 13,
     color: "#333",
   },
+  pollCard: {
+  backgroundColor: "#fff",       // nền trắng
+  borderRadius: 12,
+  padding: 12,
+  marginVertical: 8,
+  borderWidth: 1,
+  borderColor: "#e6e6e6",        // viền nhạt giống chat bubble
+},
+pollTitle: {
+  fontSize: 16,
+  fontWeight: "700",
+  color: "#333",
+  marginBottom: 12,
+  textAlign: "center",
+},
+pollOption: {
+  marginBottom: 12,
+},
+pollOptionRow: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: 4,
+},
+pollOptionText: {
+  fontSize: 14,
+  fontWeight: "500",
+  color: "#333",
+},
+pollAvatars: {
+  flexDirection: "row",
+  alignItems: "center",
+},
+pollAvatar: {
+  width: 20,
+  height: 20,
+  borderRadius: 10,
+  marginLeft: -6,
+  borderWidth: 1,
+  borderColor: "#fff",          // viền trắng cho avatar
+},
+pollMore: {
+  marginLeft: 4,
+  fontSize: 12,
+  color: "#555",
+},
+progressBar: {
+  height: 8,
+  backgroundColor: "#eee",
+  borderRadius: 6,
+  overflow: "hidden",
+},
+progressFill: {
+  height: "100%",
+  backgroundColor: "#2ECC71",   // xanh lá, đồng bộ header
+},
+voteBtn: {
+  marginTop: 12,
+  backgroundColor: "#2ECC71",   // nút xanh lá
+  paddingVertical: 10,
+  borderRadius: 8,
+  alignItems: "center",
+},
+voteText: {
+  color: "#fff",
+  fontWeight: "600",
+  fontSize: 14,
+},
+
+modalOverlay: {
+  flex: 1,
+  backgroundColor: 'rgba(0,0,0,0.5)',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+modalContent: {
+  width: '90%',
+  backgroundColor: '#fff',
+  borderRadius: 10,
+  padding: 20,
+},
+modalTitle: {
+  fontSize: 18,
+  fontWeight: 'bold',
+  marginBottom: 15,
+},
+modalOption: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  paddingVertical: 10,
+  borderBottomWidth: 1,
+  borderColor: '#eee',
+},
+modalCloseBtn: {
+  marginTop: 20,
+  alignSelf: 'center',
+  backgroundColor: '#2ECC71',
+  paddingHorizontal: 20,
+  paddingVertical: 10,
+  borderRadius: 5,
+},
+modalCloseText: { color: '#fff', fontWeight: 'bold' },
+addOptionRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginTop: 15,
+},
+addOptionInput: {
+  flex: 1,
+  borderWidth: 1,
+  borderColor: '#ddd',
+  borderRadius: 6,
+  paddingHorizontal: 10,
+  paddingVertical: 8,
+  fontSize: 14,
+},
+addOptionBtn: {
+  marginLeft: 10,
+  backgroundColor: '#2ECC71',
+  padding: 10,
+  borderRadius: 6,
+},
+
 
 });
 
