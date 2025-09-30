@@ -164,11 +164,21 @@ export default function GroupInfoScreen() {
         {/* Action Rows */}
         <View style={styles.actionRow}>
           <View style={styles.actionItem}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="search" size={24} color="#444" />
-            </View>
-            <Text style={styles.actionText}>Tìm tin nhắn</Text>
-          </View>
+  <TouchableOpacity
+    style={styles.iconCircle}
+    onPress={() =>
+      router.push({
+        pathname: "/chat/[id]",
+        params: { id: group.groupId, searchMode: true },
+      })
+    }
+  >
+    <Ionicons name="search" size={24} color="#444" />
+  </TouchableOpacity>
+  <Text style={styles.actionText}>Tìm tin nhắn</Text>
+</View>
+
+
           <View style={styles.actionItem}>
             <TouchableOpacity
               style={styles.iconCircle}

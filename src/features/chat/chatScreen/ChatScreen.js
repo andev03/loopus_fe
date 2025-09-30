@@ -92,10 +92,15 @@ function ChatScreen() {
         });
       }}
     >
-      <Image
-        source={item.avatarUrl ? { uri: item.avatarUrl } : DefaultAvatar}
-        style={styles.avatar}
-      />
+     <Image
+  source={
+    item.avatarUrl && item.avatarUrl.trim() !== "" 
+      ? { uri: item.avatarUrl } 
+      : DefaultAvatar
+  }
+  style={styles.avatar}
+/>
+
       <View style={styles.textContainer}>
         <Text style={styles.groupName}>{item.name}</Text>
         <Text style={styles.lastMessage}>{item.lastMessage}</Text>
