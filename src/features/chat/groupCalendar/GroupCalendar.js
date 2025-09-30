@@ -76,9 +76,10 @@ export default function GroupCalendarScreen() {
 
     // 👉 Quay về màn chat kèm param newReminder
     router.push({
-      pathname: `/chat/${groupId}`,
-      params: { newReminder: JSON.stringify(newReminderMessage) },
-    });
+  pathname: `/chat/${groupId}`,
+  params: { id: groupId, newReminder: JSON.stringify(newReminderMessage) },
+});
+
   } catch (err) {
     console.log("❌ Lỗi tạo nhắc hẹn:", err);
     alert("Đã xảy ra lỗi khi tạo nhắc hẹn");
