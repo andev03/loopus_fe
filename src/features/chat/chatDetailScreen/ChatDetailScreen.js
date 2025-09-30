@@ -17,6 +17,7 @@ import styles from "./ChatDetailScreen.styles";
 
 import { chatService } from "../../../services/chatService";
 import { getUser } from "../../../services/storageService";
+import { Modal } from "react-native";
 
 export default function ChatDetailScreen() {
   const { id: groupId, newReminder, poll: newPoll } = useLocalSearchParams();
@@ -25,6 +26,9 @@ export default function ChatDetailScreen() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
+  const [voteModalVisible, setVoteModalVisible] = useState(false);
+  const [selectedPoll, setSelectedPoll] = useState(null);
+  const [newOption, setNewOption] = useState("");
 
   // Load user + tin nhắn nhóm
   useEffect(() => {
@@ -79,7 +83,9 @@ export default function ChatDetailScreen() {
               return sorted;
             });
           } else {
-            console.log("Không tìm thấy tin nhắn, giữ nguyên tin nhắn hiện tại");
+            console.log(
+              "Không tìm thấy tin nhắn, giữ nguyên tin nhắn hiện tại"
+            );
           }
         } else {
           console.log("Lỗi API:", res.message);
@@ -205,36 +211,116 @@ export default function ChatDetailScreen() {
 
     // Poll
     if (item.type === "poll") {
+      const totalVotes = item.options.reduce(
+        (sum, o) => sum + o.votes.length,
+        0
+      );
+
       return (
         <View style={styles.pollCard}>
           <Text style={styles.pollTitle}>{item.title}</Text>
 
           {item.options.map((opt, idx) => {
-            const totalVotes = item.options.reduce(
-              (sum, o) => sum + o.votes.length,
-              0
-            );
             const percent =
               totalVotes > 0 ? (opt.votes.length / totalVotes) * 100 : 0;
 
             return (
-              <View key={idx} style={{ marginBottom: 12 }}>
-                <Text style={styles.pollOptionText}>{opt.text}</Text>
+              <View key={idx} style={styles.pollOption}>
+                {/* Option text + avatars */}
+                <View style={styles.pollOptionRow}>
+                  <Text style={styles.pollOptionText}>{opt.text}</Text>
+
+                  <View style={styles.pollAvatars}>
+                    {opt.votes.slice(0, 2).map((u, i) => (
+                      <Image
+                        key={i}
+                        source={{ uri: u.avatarUrl }}
+                        style={styles.pollAvatar}
+                      />
+                    ))}
+                    {opt.votes.length > 2 && (
+                      <Text style={styles.pollMore}>
+                        +{opt.votes.length - 2}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+
+                {/* Progress bar */}
                 <View style={styles.progressBar}>
                   <View
                     style={[styles.progressFill, { width: `${percent}%` }]}
                   />
                 </View>
-                <Text style={styles.pollVotes}>
-                  {opt.votes.length} phiếu ({percent.toFixed(0)}%)
-                </Text>
               </View>
             );
           })}
 
-          <TouchableOpacity style={styles.voteBtn}>
+          <TouchableOpacity
+            style={styles.voteBtn}
+            onPress={() => {
+              setSelectedPoll(item);
+              setVoteModalVisible(true);
+            }}
+          >
             <Text style={styles.voteText}>Vote</Text>
           </TouchableOpacity>
+
+          <Modal
+            visible={voteModalVisible}
+            animationType="slide"
+            transparent={true}
+            onRequestClose={() => setVoteModalVisible(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>{selectedPoll?.title}</Text>
+
+                {/* Hiển thị danh sách options */}
+                {selectedPoll?.options.map((opt, idx) => (
+                  <TouchableOpacity key={idx} style={styles.modalOption}>
+                    <Text>{opt.text}</Text>
+                    <Text>{opt.votes.length} votes</Text>
+                  </TouchableOpacity>
+                ))}
+
+                {/* Thêm lựa chọn mới */}
+                <View style={styles.addOptionRow}>
+                  <TextInput
+                    placeholder="Thêm lựa chọn..."
+                    style={styles.addOptionInput}
+                    value={newOption}
+                    onChangeText={setNewOption}
+                  />
+                  <TouchableOpacity
+                    style={styles.addOptionBtn}
+                    onPress={() => {
+                      if (!newOption.trim()) return;
+                      const updatedPoll = {
+                        ...selectedPoll,
+                        options: [
+                          ...selectedPoll.options,
+                          { text: newOption.trim(), votes: [] },
+                        ],
+                      };
+                      setSelectedPoll(updatedPoll);
+                      setNewOption("");
+                    }}
+                  >
+                    <Ionicons name="add" size={22} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Đóng */}
+                <TouchableOpacity
+                  style={styles.modalCloseBtn}
+                  onPress={() => setVoteModalVisible(false)}
+                >
+                  <Text style={styles.modalCloseText}>Đóng</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
         </View>
       );
     }

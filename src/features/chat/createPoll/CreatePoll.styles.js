@@ -2,6 +2,7 @@ import { StyleSheet, Platform } from "react-native";
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F2F4F5" },
+
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -16,7 +17,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 18,
-    paddingBottom: 160, 
+    paddingBottom: 160,
   },
 
   topCard: {
@@ -28,7 +29,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
-    
+
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -70,28 +71,31 @@ const styles = StyleSheet.create({
   card: {
     marginTop: 8,
     backgroundColor: "#fff",
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 16,
 
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOpacity: 0.02,
-        shadowRadius: 8,
+        shadowOpacity: 0.04,
+        shadowRadius: 6,
         shadowOffset: { width: 0, height: 2 },
       },
-      android: { elevation: 1 },
+      android: { elevation: 2 },
     }),
   },
 
   label: { fontSize: 16, marginBottom: 8, color: "#333", fontWeight: "600" },
 
- 
   input: {
-    borderBottomWidth: 1,
+    borderWidth: 1,
     borderColor: "#ddd",
-    marginBottom: 12,
-    paddingVertical: 6,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 16,
+    fontSize: 15,
+    backgroundColor: "#fafafa",
   },
 
   optionRow: {
@@ -99,47 +103,52 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderColor: "#eee",
+    borderColor: "#f0f0f0",
   },
 
   optionInput: {
     flex: 1,
-    paddingVertical: 0,
     fontSize: 15,
     color: "#333",
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderColor: "transparent",
   },
 
   removeBtn: {
     padding: 6,
     marginLeft: 8,
+    borderRadius: 20,
+    backgroundColor: "#f8f8f8",
   },
 
   addRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 16,
+    paddingVertical: 10,
   },
 
-  addOption: { color: "#2ECC71", marginLeft: 6, fontSize: 15 },
+  addOption: { color: "#2ECC71", marginLeft: 6, fontSize: 15, fontWeight: "600" },
 
   submitBtn: {
     position: "absolute",
     left: 20,
     right: 20,
-    bottom: 120,
+    bottom: 40,
     backgroundColor: "#2ECC71",
     paddingVertical: 14,
-    borderRadius: 30,
+    borderRadius: 40,
     alignItems: "center",
-    
+
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOpacity: 0.12,
+        shadowOpacity: 0.15,
         shadowRadius: 6,
         shadowOffset: { width: 0, height: 3 },
       },
-      android: { elevation: 4 },
+      android: { elevation: 6 },
     }),
   },
 
