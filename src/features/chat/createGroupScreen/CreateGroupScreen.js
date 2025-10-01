@@ -29,38 +29,39 @@ function CreateGroupScreen() {
     );
   };
 
-const handleAddByEmail = async () => {
-  if (!searchEmail) return;
+  const handleAddByEmail = async () => {
+    if (!searchEmail) return;
 
-  const currentUser = await getUser(); // lấy user hiện tại
-  if (currentUser?.username === searchEmail.trim()) {
-    Alert.alert("Thông báo", "Không thể tự thêm chính mình");
-    return;
-  }
-
-  const res = await findUserByEmail(searchEmail.trim());
-  if (res.success && res.userId) {
-    const exists = contacts.some((c) => c.id === res.userId);
-    if (exists) {
-      Alert.alert("Thông báo", "Người dùng đã có trong danh sách");
-    } else {
-      setContacts((prev) => [
-        ...prev,
-        {
-          id: res.userId,
-          name: res.name,
-          email: res.email,
-          avatar: res.avatar,
-          time: "Vừa thêm",
-        },
-      ]);
-      setSearchEmail("");
+    const currentUser = await getUser(); // lấy user hiện tại
+    if (currentUser?.username === searchEmail.trim()) {
+      Alert.alert("Thông báo", "Không thể tự thêm chính mình");
+      return;
     }
-  } else {
-    Alert.alert("Thông báo", res.message || "Không tìm thấy user");
-  }
-};
 
+    const res = await findUserByEmail(searchEmail.trim());
+
+    if (res?.success && res?.userId) {
+      const exists = contacts.some((c) => c.id === res.userId);
+      if (exists) {
+        Alert.alert("Thông báo", "Người dùng đã có trong danh sách");
+      } else {
+        setContacts((prev) => [
+          ...prev,
+          {
+            id: res.userId,
+            name: res.name,
+            email: res.email,
+            avatar: res.avatar,
+            time: "Vừa thêm",
+          },
+        ]);
+        Alert.alert("Thông báo", "Đã thêm thành viên");
+        setSearchEmail("");
+      }
+    } else {
+      Alert.alert("Thông báo", res?.message || "Không tìm thấy người này");
+    }
+  };
 
   const renderItem = ({ item }) => {
     const isSelected = selectedIds.includes(item.id);
@@ -83,36 +84,34 @@ const handleAddByEmail = async () => {
   };
 
   const handleCreateGroup = async () => {
-  const user = await getUser();
-  if (!user?.userId) {
-    Alert.alert("Lỗi", "Không tìm thấy userId");
-    return;
-  }
+    const user = await getUser();
+    if (!user?.userId) {
+      Alert.alert("Lỗi", "Không tìm thấy userId");
+      return;
+    }
 
-  // thêm cả người tạo vào danh sách thành viên
-  const userMemberIds = [...selectedIds, user.userId];
+    // thêm cả người tạo vào danh sách thành viên
+    const userMemberIds = [...selectedIds, user.userId];
 
-  const payload = {
-    name: groupName || "Nhóm mới",
-    description: "Group được tạo từ app",
-    createdBy: user.userId,
-    avatarUrl: "https://yourcdn.com/default-avatar.jpg", 
-    userMemberIds,
+    const payload = {
+      name: groupName || "Nhóm mới",
+      description: "Group được tạo từ app",
+      createdBy: user.userId,
+      avatarUrl: "https://yourcdn.com/default-avatar.jpg",
+      userMemberIds,
+    };
+
+    console.log("📦 Payload gửi lên:", payload);
+
+    const res = await groupService.createGroup(payload);
+
+    if (res?.status === 200) {
+      Alert.alert("Thành công", "Tạo nhóm thành công!");
+      router.replace("/chat");
+    } else {
+      Alert.alert("Thất bại", res?.message || "Tạo nhóm thất bại");
+    }
   };
-
-  console.log("📦 Payload gửi lên:", payload);
-
-  const res = await groupService.createGroup(payload);
-
-  if (res?.status === 200) {
-    Alert.alert("Thành công", "Tạo nhóm thành công!");
-    router.replace("/chat");
-  } else {
-    Alert.alert("Thất bại", res?.message || "Tạo nhóm thất bại");
-  }
-};
-
-
 
   return (
     <SafeAreaView style={styles.container}>

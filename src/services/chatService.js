@@ -28,6 +28,8 @@ export const chatService = {
             }),
             createdAt: new Date(m.createdAt),
             isCurrentUser,
+            type: m.type?.toLowerCase() || "text",   
+    imageUrl: m.imageUrl || null,     
           };
         });
 
@@ -148,6 +150,22 @@ sendImageMessage: async (groupId, userId, file) => {
     console.error("❌ sendImageMessage error:", error.message, error.response?.data);
     return { success: false, error };
   }
-}
+},
+
+getImagesByGroup: async (groupId) => {
+  try {
+    const res = await axios.get(`${API_URL}/chats/image`, {
+      params: { groupId },
+    });
+
+    if (res.status === 200) {
+      return { success: true, data: res.data?.data || [] };
+    }
+    return { success: false, data: [] };
+  } catch (error) {
+    console.error("❌ Lỗi getImagesByGroup:", error.response?.data || error.message);
+    return { success: false, error };
+  }
+},
 
 };
