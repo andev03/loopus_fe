@@ -277,6 +277,10 @@ modalOption: {
   borderBottomWidth: 1,
   borderColor: '#eee',
 },
+modalOptionText: {
+  fontSize: 15,
+  color: '#333',
+},
 modalCloseBtn: {
   marginTop: 20,
   alignSelf: 'center',
@@ -305,6 +309,48 @@ addOptionBtn: {
   backgroundColor: '#2ECC71',
   padding: 10,
   borderRadius: 6,
+},
+eventModalOverlay: {
+  flex: 1,
+  backgroundColor: 'rgba(0,0,0,0.5)',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+eventModalContent: {
+  width: '90%',
+  backgroundColor: '#fff',
+  borderRadius: 12,
+  padding: 20,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.25,
+  shadowRadius: 4,
+  elevation: 5,
+},
+eventModalTitle: {
+  fontSize: 18,
+  fontWeight: 'bold',
+  marginBottom: 10,
+  color: '#2ECC71',
+  textAlign: 'center',
+},
+eventModalText: {
+  fontSize: 14,
+  color: '#333',
+  marginBottom: 6,
+},
+eventModalCloseBtn: {
+  marginTop: 20,
+  alignSelf: 'center',
+  backgroundColor: '#2ECC71',
+  paddingHorizontal: 20,
+  paddingVertical: 10,
+  borderRadius: 8,
+},
+eventModalCloseText: {
+  color: '#fff',
+  fontWeight: 'bold',
+  fontSize: 14,
 },
 
 

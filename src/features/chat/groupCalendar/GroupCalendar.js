@@ -1,19 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
   Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { router, useLocalSearchParams } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import styles from "./GroupCalendar.style";
 import { getUser } from "../../../services/storageService";
+import { eventService } from "../../../services/eventService";
 
 export default function GroupCalendarScreen() {
   const { id: groupId } = useLocalSearchParams();
@@ -24,74 +23,65 @@ export default function GroupCalendarScreen() {
   const [showRepeatOptions, setShowRepeatOptions] = useState(false);
 
   const handleCreateReminder = async () => {
-  if (!content.trim()) {
-    alert("Vui lòng nhập nội dung nhắc hẹn");
-    return;
-  }
-
-  if (date < new Date()) {
-    alert("Không thể chọn ngày giờ trong quá khứ");
-    return;
-  }
-
-  if (!groupId) {
-    alert("Không tìm thấy groupId, vui lòng thử lại");
-    console.log("❌ Lỗi: groupId is undefined");
-    return;
-  }
-
-  try {
-    const user = await getUser();
-    if (!user) {
-      alert("Không thể lấy thông tin người dùng");
+    if (!content.trim()) {
+      alert("Vui lòng nhập nội dung nhắc hẹn");
       return;
     }
 
-    const newReminderMessage = {
-      id: Date.now().toString(),
-      type: "reminder",
-      content,
-      date: date.toISOString(),
-      repeat,
-      sender: "Bạn",
-      senderId: user.userId,
-      avatarUrl: user.avatarUrl || "https://via.placeholder.com/150",
-      time: new Date().toLocaleTimeString("vi-VN", {
+    if (date < new Date()) {
+      alert("Không thể chọn ngày giờ trong quá khứ");
+      return;
+    }
+
+    if (!groupId) {
+      alert("Không tìm thấy groupId, vui lòng thử lại");
+      return;
+    }
+
+    try {
+      const user = await getUser();
+      if (!user) {
+        alert("Không thể lấy thông tin người dùng");
+        return;
+      }
+
+      // Format ngày & giờ theo local
+      const eventDate = date.toLocaleDateString("sv-SE"); // yyyy-mm-dd
+      const eventTime = date.toLocaleTimeString("en-GB", {
         hour: "2-digit",
         minute: "2-digit",
-      }),
-      isCurrentUser: true,
-    };
+      }); // HH:mm
 
-    // Lưu nhắc hẹn vào AsyncStorage
-    const cachedMessages = await AsyncStorage.getItem(`messages_${groupId}`);
-    const existingMessages = cachedMessages ? JSON.parse(cachedMessages) : [];
-    const updatedMessages = [...existingMessages, newReminderMessage].sort(
-      (a, b) => new Date(a.createdAt || a.date) - new Date(b.createdAt || b.date)
-    );
-    await AsyncStorage.setItem(`messages_${groupId}`, JSON.stringify(updatedMessages));
+      // Chuẩn bị body đúng theo API
+      const payload = {
+        groupId,
+        creatorId: user.userId,
+        title: content,
+        description: content,
+        eventDate,
+        eventTime,
+        repeatType:
+          repeat === "Không lặp lại"
+            ? "NONE"
+            : repeat === "Hàng ngày"
+            ? "DAILY"
+            : repeat === "Hàng tuần"
+            ? "WEEKLY"
+            : "MONTHLY",
+      };
 
-    // Reset form
-    resetForm();
+      const res = await eventService.createEvent(payload);
 
-    // 👉 Quay về màn chat kèm param newReminder
-    router.push({
-  pathname: `/chat/${groupId}`,
-  params: { id: groupId, newReminder: JSON.stringify(newReminderMessage) },
-});
-
-  } catch (err) {
-    console.log("❌ Lỗi tạo nhắc hẹn:", err);
-    alert("Đã xảy ra lỗi khi tạo nhắc hẹn");
-  }
-};
-
-
-  const resetForm = () => {
-    setContent("");
-    setDate(new Date());
-    setRepeat("Không lặp lại");
-    setShowRepeatOptions(false);
+      if (res.success) {
+        // ✅ Quay về chat, màn chat sẽ tự load danh sách event từ API
+        router.push(`/chat/${groupId}`);
+      } else {
+        alert(res.message);
+      }
+    } catch (err) {
+      console.log("❌ Lỗi tạo nhắc hẹn:", err);
+      alert("Đã xảy ra lỗi khi tạo nhắc hẹn");
+    }
   };
 
   return (
@@ -161,14 +151,15 @@ export default function GroupCalendarScreen() {
             )}
           </View>
         )}
-        <TouchableOpacity style={styles.createBtn} onPress={handleCreateReminder}>
+        <TouchableOpacity
+          style={styles.createBtn}
+          onPress={handleCreateReminder}
+        >
           <Text style={{ color: "white", fontWeight: "bold" }}>
             Tạo nhắc hẹn
           </Text>
         </TouchableOpacity>
       </View>
-      {/* Bỏ FlatList nếu không cần hiển thị danh sách ở đây */}
-      {/* Nếu muốn giữ, thêm lại và load từ AsyncStorage như trước */}
     </SafeAreaView>
   );
 }
