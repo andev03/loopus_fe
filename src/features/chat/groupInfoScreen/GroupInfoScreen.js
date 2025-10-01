@@ -18,12 +18,13 @@ import { groupService } from "../../../services/groupService";
 import { getUser } from "../../../services/storageService";
 import styles from "./GroupInfoScreen.styles";
 import * as ImagePicker from "expo-image-picker";
+import { chatService } from "../../../services/chatService";
 
 export default function GroupInfoScreen() {
   const params = useLocalSearchParams();
   const groupIdParam = params?.groupId || null;
   const groupNameParam = params?.groupName || null;
-
+  const [images, setImages] = useState([]);
   const [group, setGroup] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -70,6 +71,21 @@ export default function GroupInfoScreen() {
     };
 
     fetchGroup();
+  }, [groupIdParam]);
+
+  useEffect(() => {
+    const fetchImages = async () => {
+      if (!groupIdParam) return;
+      const res = await chatService.getImagesByGroup(groupIdParam);
+      if (res.success) {
+        // 👉 sắp xếp mới nhất trước
+        const sorted = [...res.data].sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        setImages(sorted);
+      }
+    };
+    fetchImages();
   }, [groupIdParam]);
 
   // Hàm đổi tên nhóm
@@ -164,20 +180,19 @@ export default function GroupInfoScreen() {
         {/* Action Rows */}
         <View style={styles.actionRow}>
           <View style={styles.actionItem}>
-  <TouchableOpacity
-    style={styles.iconCircle}
-    onPress={() =>
-      router.push({
-        pathname: "/chat/[id]",
-        params: { id: group.groupId, searchMode: true },
-      })
-    }
-  >
-    <Ionicons name="search" size={24} color="#444" />
-  </TouchableOpacity>
-  <Text style={styles.actionText}>Tìm tin nhắn</Text>
-</View>
-
+            <TouchableOpacity
+              style={styles.iconCircle}
+              onPress={() =>
+                router.push({
+                  pathname: "/chat/[id]",
+                  params: { id: group.groupId, searchMode: true },
+                })
+              }
+            >
+              <Ionicons name="search" size={24} color="#444" />
+            </TouchableOpacity>
+            <Text style={styles.actionText}>Tìm tin nhắn</Text>
+          </View>
 
           <View style={styles.actionItem}>
             <TouchableOpacity
@@ -233,6 +248,33 @@ export default function GroupInfoScreen() {
             </TouchableOpacity>
             <Text style={styles.actionText}>Đổi ảnh nhóm</Text>
           </View>
+        </View>
+
+        {/* Ảnh & Video */}
+        <View style={styles.mediaSection}>
+          <View style={styles.mediaHeader}>
+            <Ionicons name="image" size={20} color="#666" />
+            <Text style={styles.optionText}>Ảnh & Video</Text>
+          </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {images.slice(0, 5).map((img, index) => (
+              <TouchableOpacity
+                key={index}
+                onPress={() =>
+                  router.push({
+                    pathname: "/chat/group-gallery",
+                    params: { groupId: group.groupId },
+                  })
+                }
+              >
+                <Image
+                  source={{ uri: img.imageUrl }}
+                  style={styles.mediaThumb}
+                />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         {/* Các option khác */}

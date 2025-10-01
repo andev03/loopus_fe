@@ -49,9 +49,14 @@ function ChatScreen() {
 
             if (Array.isArray(chats) && chats.length > 0) {
               const lastChat = chats[chats.length - 1];
-              lastMessage = lastChat.text;
-              lastTime = lastChat.createdAt;
-            }
+              if (lastChat.type === "image") {
+    lastMessage = "📷 Hình ảnh";
+  } else {
+    lastMessage = lastChat.text || "Tin nhắn";
+  }
+
+  lastTime = lastChat.createdAt;
+}
 
             return {
               ...g,

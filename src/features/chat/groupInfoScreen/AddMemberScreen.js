@@ -31,37 +31,51 @@ export default function AddMemberScreen() {
     );
   };
 
-  // tìm user bằng API
-  const handleAddByEmail = async () => {
-    if (!searchEmail) return;
-    console.log("🔍 Email đang tìm kiếm:", searchEmail);
+// tìm user bằng API
+const handleAddByEmail = async () => {
+  if (!searchEmail) return;
+  console.log("🔍 Email đang tìm kiếm:", searchEmail);
 
-    const currentUser = await getUser(); // Lấy thông tin người dùng hiện tại
-    if (currentUser?.username === searchEmail.trim()) {
-      Alert.alert("Thông báo", "Không thể tự thêm chính mình");
-      return;
-    }
+  const currentUser = await getUser(); // Lấy thông tin người dùng hiện tại
+  if (currentUser?.username === searchEmail.trim()) {
+    Alert.alert("Thông báo", "Không thể tự thêm chính mình");
+    return;
+  }
 
-    const res = await findUserByEmail(searchEmail);
-    if (res.success && res.userId) {
-      const newUser = {
-        id: res.userId,
-        name: res.name,
-        email: res.email,
-        avatar: res.avatar,
-        time: "Vừa thêm",
-      };
-      // check trùng
-      if (!contacts.find((c) => c.id === newUser.id)) {
-        setContacts((prev) => [...prev, newUser]);
-      } else {
-        Alert.alert("Thông báo", "Người dùng đã có trong danh sách");
+  const res = await findUserByEmail(searchEmail);
+  if (res.success && res.userId) {
+    // ✅ check với danh sách trong group từ backend
+    const membersRes = await groupService.viewMembers(groupId);
+    if (membersRes.success) {
+      const members = membersRes.data?.data || [];
+      const existsInGroup = members.some((m) => m.userId === res.userId);
+      if (existsInGroup) {
+        Alert.alert("Thông báo", "Người này đã ở trong nhóm");
+        setSearchEmail("");
+        return;
       }
-    } else {
-      Alert.alert("Không tìm thấy", res.message || "Email không tồn tại");
     }
-    setSearchEmail("");
-  };
+
+    const newUser = {
+      id: res.userId,
+      name: res.name,
+      email: res.email,
+      avatar: res.avatar,
+      time: "Vừa thêm",
+    };
+    // check trùng trong contacts tạm
+    if (!contacts.find((c) => c.id === newUser.id)) {
+      setContacts((prev) => [...prev, newUser]);
+      Alert.alert("Thành công", "Đã tìm thấy và thêm thành viên");
+    } else {
+      Alert.alert("Thông báo", "Người dùng đã có trong danh sách");
+    }
+  } else {
+    Alert.alert("Không tìm thấy", res?.message || "Email không tồn tại");
+  }
+  setSearchEmail("");
+};
+
 
   const renderItem = ({ item }) => {
     const isSelected = selectedIds.includes(item.id);

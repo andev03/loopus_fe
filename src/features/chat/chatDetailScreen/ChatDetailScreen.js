@@ -564,14 +564,7 @@ export default function ChatDetailScreen() {
                     style={styles.menuIcon}
                   />
                   <Text style={styles.menuText}>Máy ảnh</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.menuRow}>
-                  <Ionicons
-                    name="image"
-                    size={20}
-                    color="#2ECC71"
-                    style={styles.menuIcon}
-                  />
+                </TouchableOpacity>                
                   <TouchableOpacity style={styles.menuRow} onPress={pickImage}>
                     <Ionicons
                       name="image"
@@ -580,8 +573,7 @@ export default function ChatDetailScreen() {
                       style={styles.menuIcon}
                     />
                     <Text style={styles.menuText}>Ảnh</Text>
-                  </TouchableOpacity>
-                </TouchableOpacity>
+                  </TouchableOpacity>                
                 <TouchableOpacity style={styles.menuRow}>
                   <Ionicons
                     name="mic"

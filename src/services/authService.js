@@ -58,6 +58,7 @@ export const findUserByEmail = async (email) => {
     });
     console.log("findUserByEmail API response:", res.data);
 
+    // 🔑 Check thêm cả res.data.data (phải khác null)
     if (res.data?.status === 200 && res.data?.data) {
       const user = res.data.data;
       return {
@@ -65,18 +66,25 @@ export const findUserByEmail = async (email) => {
         userId: user.userId,
         name: user.fullName || user.username || email,
         email: user.username,
-        avatar: user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName || email)}`,
-        message: res.data.message,
+        avatar:
+          user.avatarUrl ||
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(
+            user.fullName || email
+          )}`,
+        message: "Tìm thấy user",
       };
     } else {
       return {
         success: false,
         userId: null,
-        message: res.data?.message || "Không tìm thấy user",
+        message: "Không tìm thấy user", // 🚀 override message cho dễ hiểu
       };
     }
   } catch (error) {
-    console.log("findUserByEmail error:", error.response?.data || error.message);
+    console.log(
+      "findUserByEmail error:",
+      error.response?.data || error.message
+    );
     return {
       success: false,
       userId: null,
@@ -84,6 +92,7 @@ export const findUserByEmail = async (email) => {
     };
   }
 };
+
 
 
 

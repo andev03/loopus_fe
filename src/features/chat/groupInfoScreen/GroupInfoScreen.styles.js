@@ -77,6 +77,22 @@ photoHeader: {
   borderBottomWidth: 1,
   borderBottomColor: "#eee",
 },
+mediaSection: {
+  marginTop: 15,
+  paddingHorizontal: 15,
+},
+mediaHeader: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginBottom: 10,
+},
+mediaThumb: {
+  width: 60,
+  height: 60,
+  borderRadius: 8,
+  marginRight: 8,
+  backgroundColor: "#ddd",
+},
 });
 
 export default styles;
