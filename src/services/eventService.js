@@ -101,6 +101,46 @@ updateEvent: async (eventData) => {
       event: null,
     };
   }
-}
+},
 
+processInvite: async ({ eventId, userId, status }) => {
+  try {
+    const res = await axios.put(`${API_URL}/event/process-invite`, {
+      eventId,
+      userId,
+      status, // "ACCEPTED" | "DECLINED"
+    });
+
+    const success = res.data?.status === 0 || res.data?.status === 200;
+
+    return {
+      success,
+      message: res.data?.message || "Cập nhật lời mời thành công",
+      data: res.data?.data || null,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response?.data?.message || "Cập nhật lời mời thất bại",
+      data: null,
+    };
+  }
+},
+deleteEvent: async (eventId) => {
+  try {
+    const res = await axios.delete(`${API_URL}/event/delete`, {
+      params: { eventId },
+    });
+    const success = res.data?.status === 0 || res.data?.status === 200;
+    return {
+      success,
+      message: res.data?.message || "Xóa sự kiện thành công",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response?.data?.message || "Xóa sự kiện thất bại",
+    };
+  }
+},
 };

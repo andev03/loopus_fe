@@ -20,6 +20,8 @@ import { chatService } from "../../../services/chatService";
 import { getUser } from "../../../services/storageService";
 import { Modal } from "react-native";
 import { eventService } from "../../../services/eventService";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Picker } from "@react-native-picker/picker";
 
 export default function ChatDetailScreen() {
   const {
@@ -44,8 +46,10 @@ export default function ChatDetailScreen() {
   const [eventModalVisible, setEventModalVisible] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editEvent, setEditEvent] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+const [showTimePicker, setShowTimePicker] = useState(false);
+const [longPressedEvent, setLongPressedEvent] = useState(null);
 
-  // Load user + tin nhắn nhóm
   useEffect(() => {
     const fetchChats = async () => {
       try {
@@ -57,16 +61,13 @@ export default function ChatDetailScreen() {
           setLoading(false);
           return;
         }
-
         console.log("✅ Received groupId:", groupId, "userId:", u.userId);
-
         const cachedMessages = await AsyncStorage.getItem(
           `messages_${groupId}`
         );
         if (cachedMessages) {
           setMessages(JSON.parse(cachedMessages));
         }
-
         const res = await chatService.getChatsByGroup(groupId, u.userId);
         if (res.success) {
           if (res.data.length > 0) {
@@ -74,7 +75,6 @@ export default function ChatDetailScreen() {
               ...m,
               isCurrentUser: m.sender === "Bạn",
             }));
-
             setMessages((prev) => {
               const merged = [...mapped, ...prev].reduce((acc, msg) => {
                 if (!acc.some((m) => m.id === msg.id)) acc.push(msg);
@@ -82,7 +82,6 @@ export default function ChatDetailScreen() {
               }, []);
 
               return merged;
-
               AsyncStorage.setItem(
                 `messages_${groupId}`,
                 JSON.stringify(sorted)
@@ -103,11 +102,9 @@ export default function ChatDetailScreen() {
         setLoading(false);
       }
     };
-
     fetchChats();
   }, [groupId]);
 
-  // Nhận reminder
   useEffect(() => {
     if (newReminder) {
       try {
@@ -126,7 +123,6 @@ export default function ChatDetailScreen() {
     }
   }, [newReminder, groupId]);
 
-  // Nhận poll
   useEffect(() => {
     if (newPoll) {
       try {
@@ -204,7 +200,6 @@ export default function ChatDetailScreen() {
       user.userId,
       image
     );
-
     if (result.success) {
       const m = result.data;
       const newMsg = {
@@ -220,7 +215,6 @@ export default function ChatDetailScreen() {
         type: m.type?.toLowerCase() || "image",
         isCurrentUser: true,
       };
-
       setMessages((prev) => [newMsg, ...prev]);
       setSelectedImage(null);
     } else {
@@ -233,7 +227,6 @@ export default function ChatDetailScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 1,
     });
-
     if (!result.canceled) {
       const image = result.assets[0];
       setSelectedImage(image);
@@ -244,7 +237,6 @@ export default function ChatDetailScreen() {
   const handleSend = async () => {
     if (!inputText.trim() || !user || !groupId) return;
     const text = inputText.trim();
-
     const res = await chatService.sendMessage(groupId, user.userId, text);
     if (res.success && res.data) {
       const newMsg = { ...res.data, isCurrentUser: true };
@@ -257,52 +249,95 @@ export default function ChatDetailScreen() {
     }
   };
 
-  // Render message types
+  const handleDeleteEvent = async (eventId) => {
+  Alert.alert(
+    "Xóa nhắc hẹn",
+    "Bạn có chắc chắn muốn xóa sự kiện này?",
+    [
+      { text: "Hủy", style: "cancel" },
+      {
+        text: "Xóa",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const res = await eventService.deleteEvent(eventId);
+            if (res.success) {
+              setMessages((prev) => prev.filter((m) => m.id !== eventId));
+              await AsyncStorage.setItem(
+                `messages_${groupId}`,
+                JSON.stringify(messages.filter((m) => m.id !== eventId))
+              );
+              Alert.alert("Thành công", "Đã xóa nhắc hẹn");
+              setLongPressedEvent(null);
+            } else {
+              Alert.alert("Lỗi", res.message);
+            }
+          } catch (err) {
+            console.log("🔥 Lỗi khi xóa sự kiện:", err);
+            Alert.alert("Lỗi", "Không thể xóa sự kiện");
+          }
+        },
+      },
+    ]
+  );
+};
+
+
   const renderMessage = ({ item }) => {
-    // reminder
     if (item.type === "reminder") {
       const eventDate = new Date(item.date);
 
       return (
         <TouchableOpacity
           activeOpacity={0.8}
-          onPress={async () => {
-  // Ưu tiên lấy event từ messages (local đã update)
-  const localEvent = messages.find(
-    (m) => String(m.id) === String(item.id)
-  );
+          onPress={async () =>  {
+            const localEvent = messages.find(
+              (m) => String(m.id) === String(item.id)
+            );
 
-  if (localEvent) {
-    setSelectedEvent({
-      eventId: localEvent.id,
-      title: localEvent.content,
-      description: localEvent.description || "",
-      eventDate: localEvent.date.split("T")[0],
-      eventTime: localEvent.date.split("T")[1],
-      repeatType: localEvent.repeat,
-      creator: { fullName: localEvent.sender, userId: localEvent.senderId },
-    });
-    setEventModalVisible(true);
-    return;
-  }
-
-  // fallback gọi API nếu chưa có local
-  try {
-    const res = await eventService.getEventDetail(item.id);
-    if (res.success) {
-      setSelectedEvent(res.data);
-      setEventModalVisible(true);
-    } else {
-      alert(res.message);
-    }
-  } catch (err) {
-    console.log("❌ Lỗi lấy chi tiết sự kiện:", err);
-    alert("Không thể lấy chi tiết sự kiện");
-  }
-}}
-
-        >
+            if (localEvent) {
+              setSelectedEvent({
+                eventId: localEvent.id,
+                title: localEvent.content,
+                description: localEvent.description || "",
+                eventDate: localEvent.date.split("T")[0],
+                eventTime: localEvent.date.split("T")[1],
+                repeatType: localEvent.repeat,
+                creator: {
+                  fullName: localEvent.sender,
+                  userId: localEvent.senderId,
+                },
+              });
+              setEventModalVisible(true);
+              return;
+            }
+            try {
+              const res = await eventService.getEventDetail(item.id);
+              if (res.success) {
+                setSelectedEvent(res.data);
+                setEventModalVisible(true);
+              } else {
+                alert(res.message);
+              }
+            } catch (err) {
+              console.log("❌ Lỗi lấy chi tiết sự kiện:", err);
+              alert("Không thể lấy chi tiết sự kiện");
+            }
+          }}
+           onLongPress={() => {
+    setLongPressedEvent(item.id);
+  }}
+        >         
           <View style={styles.eventCard}>
+            {/* Hiện thùng rác nếu long pressed */}
+    {longPressedEvent === item.id && (
+      <TouchableOpacity
+        style={{ position: "absolute", top: 10, right: 10 }}
+        onPress={() => handleDeleteEvent(item.id)}
+      >
+        <Ionicons name="trash" size={22} color="red" />
+      </TouchableOpacity>
+    )}
             <View style={styles.pollHeaderRow}>
               <Image
                 source={
@@ -316,7 +351,6 @@ export default function ChatDetailScreen() {
                 {item.sender || "Bạn"} đã tạo một cuộc hẹn
               </Text>
             </View>
-
             <View style={styles.eventBody}>
               <View style={styles.eventDate}>
                 <Text style={styles.eventDay}>
@@ -344,17 +378,66 @@ export default function ChatDetailScreen() {
                 </Text>
               </View>
             </View>
-
             <View style={styles.eventActions}>
-              <Text style={styles.eventReject}>Từ chối</Text>
-              <Text style={styles.eventAccept}>Tham gia</Text>
-            </View>
+  {/* Nút Từ chối */}
+  <TouchableOpacity
+    onPress={async () => {
+      console.log("🔴 [DEBUG] Bấm Từ chối sự kiện:", item.id);
+      if (!user) return;
+      try {
+        const payload = {
+          eventId: item.id,
+          userId: user.userId,
+          status: "DECLINED",
+        };
+        console.log("📤 Gửi request:", payload);
+        const res = await eventService.processInvite(payload);
+        console.log("📥 Kết quả response:", res);
+        if (res.success) {
+          Alert.alert("Thành công", "Bạn đã từ chối sự kiện");
+        } else {
+          Alert.alert("Lỗi", res.message);
+        }
+      } catch (err) {
+        console.log("🔥 Lỗi khi gọi API:", err);
+      }
+    }}
+  >
+    <Text style={styles.eventReject}>Từ chối</Text>
+  </TouchableOpacity>
+
+  {/* Nút Tham gia */}
+  <TouchableOpacity
+    onPress={async () => {
+      console.log("🟢 [DEBUG] Bấm Tham gia sự kiện:", item.id);
+      if (!user) return;
+      try {
+        const payload = {
+          eventId: item.id,
+          userId: user.userId,
+          status: "ACCEPTED",
+        };
+        console.log("📤 Gửi request:", payload);
+        const res = await eventService.processInvite(payload);
+        console.log("📥 Kết quả response:", res);
+        if (res.success) {
+          Alert.alert("Thành công", "Bạn đã tham gia sự kiện");
+        } else {
+          Alert.alert("Lỗi", res.message);
+        }
+      } catch (err) {
+        console.log("🔥 Lỗi khi gọi API:", err);
+      }
+    }}
+  >
+    <Text style={styles.eventAccept}>Tham gia</Text>
+  </TouchableOpacity>
+</View>
           </View>
         </TouchableOpacity>
       );
     }
 
-    // poll
     if (item.type === "poll") {
       const totalVotes = item.options.reduce(
         (sum, o) => sum + o.votes.length,
@@ -368,7 +451,6 @@ export default function ChatDetailScreen() {
           {item.options.map((opt, idx) => {
             const percent =
               totalVotes > 0 ? (opt.votes.length / totalVotes) * 100 : 0;
-
             return (
               <View key={idx} style={styles.pollOption}>
                 <View style={styles.pollOptionRow}>
@@ -398,7 +480,6 @@ export default function ChatDetailScreen() {
               </View>
             );
           })}
-
           <TouchableOpacity
             style={styles.voteBtn}
             onPress={() => {
@@ -408,7 +489,6 @@ export default function ChatDetailScreen() {
           >
             <Text style={styles.voteText}>Vote</Text>
           </TouchableOpacity>
-
           <Modal
             visible={voteModalVisible}
             animationType="slide"
@@ -425,7 +505,6 @@ export default function ChatDetailScreen() {
                     <Text>{opt.votes.length} votes</Text>
                   </TouchableOpacity>
                 ))}
-
                 <View style={styles.addOptionRow}>
                   <TextInput
                     placeholder="Thêm lựa chọn..."
@@ -451,7 +530,6 @@ export default function ChatDetailScreen() {
                     <Ionicons name="add" size={22} color="#fff" />
                   </TouchableOpacity>
                 </View>
-
                 <TouchableOpacity
                   style={styles.modalCloseBtn}
                   onPress={() => setVoteModalVisible(false)}
@@ -759,95 +837,144 @@ export default function ChatDetailScreen() {
                       Chỉnh sửa sự kiện
                     </Text>
 
-                    <TextInput
-                      style={styles.eventModalInput}
-                      value={editEvent.title}
-                      onChangeText={(t) =>
-                        setEditEvent({ ...editEvent, title: t })
-                      }
-                      placeholder="Tiêu đề"
-                    />
-                    <TextInput
-                      style={styles.eventModalInput}
-                      value={editEvent.description}
-                      onChangeText={(t) =>
-                        setEditEvent({ ...editEvent, description: t })
-                      }
-                      placeholder="Mô tả"
-                    />
-                    <TextInput
-                      style={styles.eventModalInput}
-                      value={editEvent.eventDate}
-                      onChangeText={(t) =>
-                        setEditEvent({ ...editEvent, eventDate: t })
-                      }
-                      placeholder="YYYY-MM-DD"
-                    />
-                    <TextInput
-                      style={styles.eventModalInput}
-                      value={editEvent.eventTime}
-                      onChangeText={(t) =>
-                        setEditEvent({ ...editEvent, eventTime: t })
-                      }
-                      placeholder="HH:mm:ss"
-                    />
-                    <TextInput
-                      style={styles.eventModalInput}
-                      value={editEvent.repeatType}
-                      onChangeText={(t) =>
-                        setEditEvent({
-                          ...editEvent,
-                          repeatType: t.toUpperCase(),
-                        })
-                      }
-                      placeholder="NONE / DAILY / WEEKLY / MONTHLY"
-                    />
+                   <Text style={styles.eventModalLabel}>Tiêu đề</Text>
+<TextInput
+  style={styles.eventModalInput}
+  value={editEvent.title}
+  onChangeText={(t) => setEditEvent({ ...editEvent, title: t })}
+  placeholder="Nhập tiêu đề sự kiện"
+/>
 
-                    <TouchableOpacity
-  style={styles.eventModalSaveBtn}
-  onPress={async () => {
-   const res = await eventService.updateEvent(editEvent);
-if (res.success && res.event) {
-  const updatedEvent = res.event;
+<Text style={styles.eventModalLabel}>Mô tả</Text>
+<TextInput
+  style={styles.eventModalInput}
+  value={editEvent.description}
+  onChangeText={(t) => setEditEvent({ ...editEvent, description: t })}
+  placeholder="Nhập mô tả (không bắt buộc)"
+/>
 
-  setSelectedEvent(updatedEvent);
-
-  setMessages((prev) => {
-    const updatedMessages = prev.map((msg) =>
-      String(msg.id) === String(updatedEvent.eventId)
-        ? {
-            ...msg,
-            content: updatedEvent.title,
-            date: `${updatedEvent.eventDate}T${updatedEvent.eventTime}`,
-            repeat: updatedEvent.repeatType,
-          }
-        : msg
-    );
-
-    // ✅ update lại cache luôn
-    AsyncStorage.setItem(`messages_${groupId}`, JSON.stringify(updatedMessages));
-
-    return updatedMessages;
-  });
-
-  setEventModalVisible(false);
-  setEditMode(false);
-  Alert.alert("Thành công", "Cập nhật sự kiện thành công!");
-} else {
-  Alert.alert("Lỗi", res.message);
-}
-
-  }}
+<Text style={styles.eventModalLabel}>Ngày</Text>
+<TouchableOpacity
+  style={styles.eventModalInput}
+  onPress={() => setShowDatePicker(true)}
 >
-  <Text style={styles.eventModalSaveText}>Lưu</Text>
+  <Text>{editEvent.eventDate || "Chọn ngày"}</Text>
 </TouchableOpacity>
+{showDatePicker && (
+  <DateTimePicker
+    value={editEvent.eventDate ? new Date(editEvent.eventDate) : new Date()}
+    mode="date"
+    display="default"
+    onChange={(event, selectedDate) => {
+      setShowDatePicker(false);
+      if (selectedDate) {
+        const formatted = selectedDate.toISOString().split("T")[0];
+        setEditEvent({ ...editEvent, eventDate: formatted });
+      }
+    }}
+  />
+)}
 
-                    <TouchableOpacity
-                      style={styles.eventModalCloseBtn}
-                      onPress={() => setEditMode(false)}
-                    >
-                      <Text style={styles.eventModalCloseText}>Hủy</Text>
-                    </TouchableOpacity>
+<Text style={styles.eventModalLabel}>Giờ</Text>
+<TouchableOpacity
+  style={styles.eventModalInput}
+  onPress={() => setShowTimePicker(true)}
+>
+  <Text>{editEvent.eventTime || "Chọn giờ"}</Text>
+</TouchableOpacity>
+{showTimePicker && (
+  <DateTimePicker
+    value={
+      editEvent.eventTime
+        ? new Date(`1970-01-01T${editEvent.eventTime}`)
+        : new Date()
+    }
+    mode="time"
+    display="default"
+    onChange={(event, selectedTime) => {
+      setShowTimePicker(false);
+      if (selectedTime) {
+        const hours = selectedTime.getHours().toString().padStart(2, "0");
+        const minutes = selectedTime.getMinutes().toString().padStart(2, "0");
+        setEditEvent({
+          ...editEvent,
+          eventTime: `${hours}:${minutes}:00`,
+        });
+      }
+    }}
+  />
+)}
+
+<Text style={styles.eventModalLabel}>Lặp lại</Text>
+<View style={[styles.eventModalInput, { padding: 0 }]}>
+  <Picker
+    selectedValue={editEvent.repeatType}
+    onValueChange={(value) =>
+      setEditEvent({ ...editEvent, repeatType: value })
+    }
+  >
+    <Picker.Item label="Không" value="NONE" />
+    <Picker.Item label="Hàng ngày" value="DAILY" />
+    <Picker.Item label="Hàng tuần" value="WEEKLY" />
+    <Picker.Item label="Hàng tháng" value="MONTHLY" />
+  </Picker>
+</View>
+
+
+
+                    <View style={styles.eventModalActions}>
+                      {/* Nút Lưu */}
+                      <TouchableOpacity
+                        style={styles.eventModalActionBtn}
+                        onPress={async () => {
+                          const res = await eventService.updateEvent(editEvent);
+                          if (res.success && res.event) {
+                            const updatedEvent = res.event;
+
+                            setSelectedEvent(updatedEvent);
+
+                            setMessages((prev) => {
+                              const updatedMessages = prev.map((msg) =>
+                                String(msg.id) === String(updatedEvent.eventId)
+                                  ? {
+                                      ...msg,
+                                      content: updatedEvent.title,
+                                      date: `${updatedEvent.eventDate}T${updatedEvent.eventTime}`,
+                                      repeat: updatedEvent.repeatType,
+                                    }
+                                  : msg
+                              );
+
+                              AsyncStorage.setItem(
+                                `messages_${groupId}`,
+                                JSON.stringify(updatedMessages)
+                              );
+
+                              return updatedMessages;
+                            });
+
+                            setEventModalVisible(false);
+                            setEditMode(false);
+                            Alert.alert(
+                              "Thành công",
+                              "Cập nhật sự kiện thành công!"
+                            );
+                          } else {
+                            Alert.alert("Lỗi", res.message);
+                          }
+                        }}
+                      >
+                        <Text style={styles.eventModalActionText}>Lưu</Text>
+                      </TouchableOpacity>
+
+                      {/* Nút Hủy */}
+                      <TouchableOpacity
+                        style={styles.eventModalActionBtn}
+                        onPress={() => setEditMode(false)}
+                      >
+                        <Text style={styles.eventModalActionText}>Hủy</Text>
+                      </TouchableOpacity>
+                    </View>
                   </>
                 ) : (
                   <>
@@ -871,9 +998,10 @@ if (res.success && res.event) {
                       {repeatTypeMap[selectedEvent?.repeatType] || "Không"}
                     </Text>
 
-                    <View style={{ flexDirection: "row", marginTop: 15 }}>
+                    <View style={styles.eventModalActions}>
+                      {/* Nút chỉnh sửa */}
                       <TouchableOpacity
-                        style={styles.eventModalEditBtn}
+                        style={styles.eventModalActionBtn}
                         onPress={() => {
                           setEditEvent({
                             eventId: selectedEvent.eventId,
@@ -886,14 +1014,17 @@ if (res.success && res.event) {
                           setEditMode(true);
                         }}
                       >
-                        <Text style={styles.eventModalEditText}>Chỉnh sửa</Text>
+                        <Text style={styles.eventModalActionText}>
+                          Chỉnh sửa
+                        </Text>
                       </TouchableOpacity>
 
+                      {/* Nút đóng */}
                       <TouchableOpacity
-                        style={styles.eventModalCloseBtn}
+                        style={styles.eventModalActionBtn}
                         onPress={() => setEventModalVisible(false)}
                       >
-                        <Text style={styles.eventModalCloseText}>Đóng</Text>
+                        <Text style={styles.eventModalActionText}>Đóng</Text>
                       </TouchableOpacity>
                     </View>
                   </>
