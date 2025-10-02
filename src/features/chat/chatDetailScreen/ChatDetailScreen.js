@@ -41,7 +41,9 @@ export default function ChatDetailScreen() {
   const [searchResults, setSearchResults] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
-const [eventModalVisible, setEventModalVisible] = useState(false);
+  const [eventModalVisible, setEventModalVisible] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editEvent, setEditEvent] = useState(null);
 
   // Load user + tin nhắn nhóm
   useEffect(() => {
@@ -79,7 +81,7 @@ const [eventModalVisible, setEventModalVisible] = useState(false);
                 return acc;
               }, []);
 
-             return merged;
+              return merged;
 
               AsyncStorage.setItem(
                 `messages_${groupId}`,
@@ -141,43 +143,42 @@ const [eventModalVisible, setEventModalVisible] = useState(false);
     }
   }, [newPoll, groupId]);
 
+  useEffect(() => {
+    const fetchEvents = async () => {
+      if (!groupId) return;
+      try {
+        const res = await eventService.getGroupEvents(groupId);
+        if (res.success && res.data.length > 0) {
+          const events = res.data.map((e) => ({
+            id: e.eventId,
+            type: "reminder",
+            content: e.title,
+            date: `${e.eventDate}T${e.eventTime}`,
+            repeat: e.repeatType,
+            sender: e.creator?.fullName || "Thành viên",
+            senderId: e.creator?.userId,
+            avatarUrl:
+              e.creator?.avatarUrl || "https://via.placeholder.com/150",
+            time: e.eventTime,
+            isCurrentUser: user?.userId === e.creator?.userId,
+          }));
 
-useEffect(() => {
-  const fetchEvents = async () => {
-    if (!groupId) return;
-    try {
-      const res = await eventService.getGroupEvents(groupId);
-      if (res.success && res.data.length > 0) {
-        const events = res.data.map((e) => ({
-          id: e.eventId,
-          type: "reminder",
-          content: e.title,
-          date: `${e.eventDate}T${e.eventTime}`,
-          repeat: e.repeatType,
-          sender: e.creator?.fullName || "Thành viên",
-          senderId: e.creator?.userId,
-          avatarUrl: e.creator?.avatarUrl || "https://via.placeholder.com/150",
-          time: e.eventTime,
-          isCurrentUser: user?.userId === e.creator?.userId,
-        }));
+          setMessages((prev) => {
+            const merged = [...prev, ...events].reduce((acc, msg) => {
+              if (!acc.some((m) => m.id === msg.id)) acc.push(msg);
+              return acc;
+            }, []);
 
-        setMessages((prev) => {
-          const merged = [...prev, ...events].reduce((acc, msg) => {
-            if (!acc.some((m) => m.id === msg.id)) acc.push(msg);
-            return acc;
-          }, []);
-
-          return merged;
-        });
+            return merged;
+          });
+        }
+      } catch (err) {
+        console.log("❌ Lỗi load nhắc hẹn:", err);
       }
-    } catch (err) {
-      console.log("❌ Lỗi load nhắc hẹn:", err);
-    }
-  };
+    };
 
-  fetchEvents();
-}, [groupId]);
-
+    fetchEvents();
+  }, [groupId]);
 
   const handleSearch = async (keyword) => {
     if (!keyword.trim()) {
@@ -260,74 +261,98 @@ useEffect(() => {
   const renderMessage = ({ item }) => {
     // reminder
     if (item.type === "reminder") {
-  const eventDate = new Date(item.date);
+      const eventDate = new Date(item.date);
 
-  return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={async () => {
-        try {
-          const res = await eventService.getEventDetail(item.id); 
-          if (res.success) {
-            setSelectedEvent(res.data);   
-            setEventModalVisible(true);  
-          } else {
-            alert(res.message);
-          }
-        } catch (err) {
-          console.log("❌ Lỗi lấy chi tiết sự kiện:", err);
-          alert("Không thể lấy chi tiết sự kiện");
-        }
-      }}
-    >
-      <View style={styles.eventCard}>
-        <View style={styles.pollHeaderRow}>
-          <Image
-            source={
-              item.avatarUrl
-                ? { uri: item.avatarUrl }
-                : require("../../../assets/images/default-avatar.jpg")
-            }
-            style={styles.avatar}
-          />
-          <Text style={styles.pollHeader}>
-            {item.sender || "Bạn"} đã tạo một cuộc hẹn
-          </Text>
-        </View>
-
-        <View style={styles.eventBody}>
-          <View style={styles.eventDate}>
-            <Text style={styles.eventDay}>THG {eventDate.getMonth() + 1}</Text>
-            <Text style={styles.eventDateNumber}>{eventDate.getDate()}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.eventTitle}>{item.content}</Text>
-            <Text style={styles.eventTime}>
-              {eventDate.toLocaleDateString("vi-VN", {
-                weekday: "short",
-                day: "numeric",
-                month: "numeric",
-              })}
-            </Text>
-            <Text style={styles.eventTime}>
-              Lúc{" "}
-              {eventDate.toLocaleTimeString("vi-VN", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.eventActions}>
-          <Text style={styles.eventReject}>Từ chối</Text>
-          <Text style={styles.eventAccept}>Tham gia</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+      return (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={async () => {
+  // Ưu tiên lấy event từ messages (local đã update)
+  const localEvent = messages.find(
+    (m) => String(m.id) === String(item.id)
   );
-}
 
+  if (localEvent) {
+    setSelectedEvent({
+      eventId: localEvent.id,
+      title: localEvent.content,
+      description: localEvent.description || "",
+      eventDate: localEvent.date.split("T")[0],
+      eventTime: localEvent.date.split("T")[1],
+      repeatType: localEvent.repeat,
+      creator: { fullName: localEvent.sender, userId: localEvent.senderId },
+    });
+    setEventModalVisible(true);
+    return;
+  }
+
+  // fallback gọi API nếu chưa có local
+  try {
+    const res = await eventService.getEventDetail(item.id);
+    if (res.success) {
+      setSelectedEvent(res.data);
+      setEventModalVisible(true);
+    } else {
+      alert(res.message);
+    }
+  } catch (err) {
+    console.log("❌ Lỗi lấy chi tiết sự kiện:", err);
+    alert("Không thể lấy chi tiết sự kiện");
+  }
+}}
+
+        >
+          <View style={styles.eventCard}>
+            <View style={styles.pollHeaderRow}>
+              <Image
+                source={
+                  item.avatarUrl
+                    ? { uri: item.avatarUrl }
+                    : require("../../../assets/images/default-avatar.jpg")
+                }
+                style={styles.avatar}
+              />
+              <Text style={styles.pollHeader}>
+                {item.sender || "Bạn"} đã tạo một cuộc hẹn
+              </Text>
+            </View>
+
+            <View style={styles.eventBody}>
+              <View style={styles.eventDate}>
+                <Text style={styles.eventDay}>
+                  THG {eventDate.getMonth() + 1}
+                </Text>
+                <Text style={styles.eventDateNumber}>
+                  {eventDate.getDate()}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.eventTitle}>{item.content}</Text>
+                <Text style={styles.eventTime}>
+                  {eventDate.toLocaleDateString("vi-VN", {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "numeric",
+                  })}
+                </Text>
+                <Text style={styles.eventTime}>
+                  Lúc{" "}
+                  {eventDate.toLocaleTimeString("vi-VN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.eventActions}>
+              <Text style={styles.eventReject}>Từ chối</Text>
+              <Text style={styles.eventAccept}>Tham gia</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      );
+    }
 
     // poll
     if (item.type === "poll") {
@@ -505,17 +530,14 @@ useEffect(() => {
   };
 
   const repeatTypeMap = {
-  DAILY: "Hàng ngày",
-  WEEKLY: "Hàng tuần",
-  MONTHLY: "Hàng tháng",
-};
+    DAILY: "Hàng ngày",
+    WEEKLY: "Hàng tuần",
+    MONTHLY: "Hàng tháng",
+  };
 
-
-
-<Text style={styles.eventModalText}>
-  Lặp lại: {repeatTypeMap[selectedEvent.repeatType] || "Không"}
-</Text>
-
+  <Text style={styles.eventModalText}>
+    Lặp lại: {repeatTypeMap[selectedEvent?.repeatType] || "Không"}
+  </Text>;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
@@ -631,16 +653,16 @@ useEffect(() => {
                     style={styles.menuIcon}
                   />
                   <Text style={styles.menuText}>Máy ảnh</Text>
-                </TouchableOpacity>                
-                  <TouchableOpacity style={styles.menuRow} onPress={pickImage}>
-                    <Ionicons
-                      name="image"
-                      size={20}
-                      color="#2ECC71"
-                      style={styles.menuIcon}
-                    />
-                    <Text style={styles.menuText}>Ảnh</Text>
-                  </TouchableOpacity>                
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuRow} onPress={pickImage}>
+                  <Ionicons
+                    name="image"
+                    size={20}
+                    color="#2ECC71"
+                    style={styles.menuIcon}
+                  />
+                  <Text style={styles.menuText}>Ảnh</Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.menuRow}>
                   <Ionicons
                     name="mic"
@@ -723,37 +745,165 @@ useEffect(() => {
           </SafeAreaView>
         )}
         <Modal
-  visible={eventModalVisible}
-  animationType="slide"
-  transparent={true}
-  onRequestClose={() => setEventModalVisible(false)}
->
-  <View style={styles.eventModalOverlay}>
-    <View style={styles.eventModalContent}>
-      {selectedEvent ? (
-        <>
-          <Text style={styles.eventModalTitle}>{selectedEvent.title}</Text>
-          <Text style={styles.eventModalText}>Mô tả: {selectedEvent.description || "Không có"}</Text>
-          <Text style={styles.eventModalText}>Ngày: {selectedEvent.eventDate}</Text>
-          <Text style={styles.eventModalText}>Giờ: {selectedEvent.eventTime}</Text>
-          <Text style={styles.eventModalText}>Người tạo: {selectedEvent.creator?.fullName}</Text>
-          <Text style={styles.eventModalText}>
-  Lặp lại: {repeatTypeMap[selectedEvent.repeatType] || "Không"}
-</Text>
+          visible={eventModalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setEventModalVisible(false)}
+        >
+          <View style={styles.eventModalOverlay}>
+            <View style={styles.eventModalContent}>
+              {selectedEvent ? (
+                editMode ? (
+                  <>
+                    <Text style={styles.eventModalTitle}>
+                      Chỉnh sửa sự kiện
+                    </Text>
 
-          <TouchableOpacity
-            style={styles.eventModalCloseBtn}
-            onPress={() => setEventModalVisible(false)}
-          >
-            <Text style={styles.eventModalCloseText}>Đóng</Text>
-          </TouchableOpacity>
-        </>
-      ) : (
-        <Text>Đang tải chi tiết...</Text>
-      )}
-    </View>
-  </View>
-</Modal>
+                    <TextInput
+                      style={styles.eventModalInput}
+                      value={editEvent.title}
+                      onChangeText={(t) =>
+                        setEditEvent({ ...editEvent, title: t })
+                      }
+                      placeholder="Tiêu đề"
+                    />
+                    <TextInput
+                      style={styles.eventModalInput}
+                      value={editEvent.description}
+                      onChangeText={(t) =>
+                        setEditEvent({ ...editEvent, description: t })
+                      }
+                      placeholder="Mô tả"
+                    />
+                    <TextInput
+                      style={styles.eventModalInput}
+                      value={editEvent.eventDate}
+                      onChangeText={(t) =>
+                        setEditEvent({ ...editEvent, eventDate: t })
+                      }
+                      placeholder="YYYY-MM-DD"
+                    />
+                    <TextInput
+                      style={styles.eventModalInput}
+                      value={editEvent.eventTime}
+                      onChangeText={(t) =>
+                        setEditEvent({ ...editEvent, eventTime: t })
+                      }
+                      placeholder="HH:mm:ss"
+                    />
+                    <TextInput
+                      style={styles.eventModalInput}
+                      value={editEvent.repeatType}
+                      onChangeText={(t) =>
+                        setEditEvent({
+                          ...editEvent,
+                          repeatType: t.toUpperCase(),
+                        })
+                      }
+                      placeholder="NONE / DAILY / WEEKLY / MONTHLY"
+                    />
+
+                    <TouchableOpacity
+  style={styles.eventModalSaveBtn}
+  onPress={async () => {
+   const res = await eventService.updateEvent(editEvent);
+if (res.success && res.event) {
+  const updatedEvent = res.event;
+
+  setSelectedEvent(updatedEvent);
+
+  setMessages((prev) => {
+    const updatedMessages = prev.map((msg) =>
+      String(msg.id) === String(updatedEvent.eventId)
+        ? {
+            ...msg,
+            content: updatedEvent.title,
+            date: `${updatedEvent.eventDate}T${updatedEvent.eventTime}`,
+            repeat: updatedEvent.repeatType,
+          }
+        : msg
+    );
+
+    // ✅ update lại cache luôn
+    AsyncStorage.setItem(`messages_${groupId}`, JSON.stringify(updatedMessages));
+
+    return updatedMessages;
+  });
+
+  setEventModalVisible(false);
+  setEditMode(false);
+  Alert.alert("Thành công", "Cập nhật sự kiện thành công!");
+} else {
+  Alert.alert("Lỗi", res.message);
+}
+
+  }}
+>
+  <Text style={styles.eventModalSaveText}>Lưu</Text>
+</TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.eventModalCloseBtn}
+                      onPress={() => setEditMode(false)}
+                    >
+                      <Text style={styles.eventModalCloseText}>Hủy</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.eventModalTitle}>
+                      {selectedEvent.title}
+                    </Text>
+                    <Text style={styles.eventModalText}>
+                      Mô tả: {selectedEvent.description || "Không có"}
+                    </Text>
+                    <Text style={styles.eventModalText}>
+                      Ngày: {selectedEvent.eventDate}
+                    </Text>
+                    <Text style={styles.eventModalText}>
+                      Giờ: {selectedEvent.eventTime}
+                    </Text>
+                    <Text style={styles.eventModalText}>
+                      Người tạo: {selectedEvent.creator?.fullName}
+                    </Text>
+                    <Text style={styles.eventModalText}>
+                      Lặp lại:{" "}
+                      {repeatTypeMap[selectedEvent?.repeatType] || "Không"}
+                    </Text>
+
+                    <View style={{ flexDirection: "row", marginTop: 15 }}>
+                      <TouchableOpacity
+                        style={styles.eventModalEditBtn}
+                        onPress={() => {
+                          setEditEvent({
+                            eventId: selectedEvent.eventId,
+                            title: selectedEvent.title,
+                            description: selectedEvent.description,
+                            eventDate: selectedEvent.eventDate,
+                            eventTime: selectedEvent.eventTime,
+                            repeatType: selectedEvent.repeatType,
+                          });
+                          setEditMode(true);
+                        }}
+                      >
+                        <Text style={styles.eventModalEditText}>Chỉnh sửa</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.eventModalCloseBtn}
+                        onPress={() => setEventModalVisible(false)}
+                      >
+                        <Text style={styles.eventModalCloseText}>Đóng</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )
+              ) : (
+                <Text>Đang tải chi tiết...</Text>
+              )}
+            </View>
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

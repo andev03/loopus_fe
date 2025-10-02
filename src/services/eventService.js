@@ -84,4 +84,23 @@ export const eventService = {
     };
   }
 },
+
+updateEvent: async (eventData) => {
+  try {
+    const res = await axios.put(`${API_URL}/event/update`, eventData);
+    const success = res.data?.status === 0 || res.data?.status === 200;
+    return {
+      success,
+      message: res.data?.message || "Cập nhật sự kiện thành công",
+      event: res.data?.data || null,  // ✅ đổi thành event
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response?.data?.message || "Cập nhật sự kiện thất bại",
+      event: null,
+    };
+  }
+}
+
 };
