@@ -1,10 +1,43 @@
-import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
 export default function AppInfoScreen() {
+  const [expandedId, setExpandedId] = useState(null);
+
+  const menuItems = [
+    {
+      id: "1",
+      title: "Điều khoản sử dụng",
+      detail:
+        "Đây là các quy định bạn cần tuân thủ khi sử dụng ứng dụng LOOPUS. Việc vi phạm có thể dẫn đến việc khóa tài khoản.",
+    },
+    {
+      id: "2",
+      title: "Chính sách quyền riêng tư",
+      detail:
+        "Chúng tôi cam kết bảo mật dữ liệu cá nhân của bạn và không chia sẻ cho bên thứ ba nếu không có sự đồng ý.",
+    },
+    {
+      id: "3",
+      title: "Quy chế hoạt động",
+      detail:
+        "Ứng dụng LOOPUS vận hành theo các quy định của pháp luật Việt Nam và tuân thủ các điều khoản được công bố.",
+    },
+  ];
+
+  const toggleExpand = (id) => {
+    setExpandedId(expandedId === id ? null : id);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -17,28 +50,33 @@ export default function AppInfoScreen() {
       </View>
 
       <ScrollView style={styles.content}>
-        {/* Logo + Version */}
+        {/* Logo */}
         <View style={styles.logoBox}>
           <Text style={styles.logo}>LOOPUS</Text>
         </View>
 
         {/* Menu items */}
-        <TouchableOpacity style={styles.menuItem}>
-          <Text style={styles.menuTitle}>Điều khoản sử dụng</Text>
-          <Ionicons name="chevron-forward" size={20} color="#999" />
-        </TouchableOpacity>
+        {menuItems.map((item) => (
+          <View key={item.id}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => toggleExpand(item.id)}
+            >
+              <Text style={styles.menuTitle}>{item.title}</Text>
+              <Ionicons
+                name={expandedId === item.id ? "chevron-up" : "chevron-forward"}
+                size={20}
+                color="#999"
+              />
+            </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem}>
-          <Text style={styles.menuTitle}>Chính sách quyền riêng tư</Text>
-          <Ionicons name="chevron-forward" size={20} color="#999" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem}>
-          <Text style={styles.menuTitle}>Quy chế hoạt động</Text>
-          <Ionicons name="chevron-forward" size={20} color="#999" />
-        </TouchableOpacity>
-
-        {/* ✅ ĐÃ BỎ mục “Loopus trên Facebook” */}
+            {expandedId === item.id && (
+              <View style={styles.detailBox}>
+                <Text style={styles.detailText}>{item.detail}</Text>
+              </View>
+            )}
+          </View>
+        ))}
       </ScrollView>
     </SafeAreaView>
   );
@@ -96,5 +134,14 @@ const styles = StyleSheet.create({
   menuTitle: {
     fontSize: 16,
     fontWeight: "600",
+  },
+  detailBox: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: "#f9f9f9",
+  },
+  detailText: {
+    fontSize: 14,
+    color: "#444",
   },
 });

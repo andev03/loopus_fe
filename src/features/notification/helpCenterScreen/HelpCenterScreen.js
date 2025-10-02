@@ -24,7 +24,7 @@ export default function HelpCenterScreen() {
         {/* Icon + chào */}
         <View style={styles.greetingBox}>
           <Ionicons name="call-outline" size={70} color="#2ECC71" />
-          <Text style={styles.hello}>Xin chào, Công Phát</Text>
+          <Text style={styles.hello}>Xin chào</Text>
           <Text style={styles.subHello}>
             Chúng tôi luôn luôn sẵn sàng hỗ trợ bạn!
           </Text>
