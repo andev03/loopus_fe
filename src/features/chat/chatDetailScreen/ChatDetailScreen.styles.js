@@ -352,8 +352,31 @@ eventModalCloseText: {
   fontWeight: 'bold',
   fontSize: 14,
 },
-
-
+eventModalActionBtn: {
+  backgroundColor: '#2ECC71',
+  paddingHorizontal: 20,
+  paddingVertical: 10,
+  borderRadius: 8,
+  marginHorizontal: 10, 
+},
+eventModalActionText: {
+  color: '#fff',
+  fontWeight: 'bold',
+  fontSize: 14,
+  textAlign: 'center',
+},
+eventModalActions: {
+  flexDirection: 'row',
+  justifyContent: 'center',
+  marginTop: 20,
+},
+eventModalLabel: {
+  fontSize: 14,
+  fontWeight: "600",
+  marginBottom: 4,
+  marginTop: 10,
+  color: "#333",
+},
 });
 
 export default styles;
