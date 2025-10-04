@@ -35,10 +35,15 @@ const contacts = [
 
 export default function SelectPayerScreen() {
   const [selected, setSelected] = useState([]);
+  const [amounts, setAmounts] = useState({}); // lưu số tiền mỗi người
 
   const toggleSelect = (id) => {
     if (selected.includes(id)) {
       setSelected(selected.filter((x) => x !== id));
+      // xóa số tiền khi bỏ chọn
+      const updated = { ...amounts };
+      delete updated[id];
+      setAmounts(updated);
     } else {
       setSelected([...selected, id]);
     }
@@ -46,10 +51,20 @@ export default function SelectPayerScreen() {
 
   const selectAll = () => {
     if (selected.length === contacts.length) {
-      setSelected([]); // bỏ chọn tất cả
+      setSelected([]);
+      setAmounts({});
     } else {
-      setSelected(contacts.map((c) => c.id)); // chọn tất cả
+      setSelected(contacts.map((c) => c.id));
     }
+  };
+
+  const handleAmountChange = (id, value) => {
+    const numericValue = value.replace(/\D/g, "");
+    const formattedValue = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    setAmounts({
+      ...amounts,
+      [id]: formattedValue,
+    });
   };
 
   const renderItem = ({ item }) => {
@@ -58,6 +73,7 @@ export default function SelectPayerScreen() {
       <TouchableOpacity
         style={styles.row}
         onPress={() => toggleSelect(item.id)}
+        activeOpacity={0.9}
       >
         <View style={styles.avatarBox}>
           <Image source={{ uri: item.avatar }} style={styles.avatar} />
@@ -71,6 +87,22 @@ export default function SelectPayerScreen() {
           <Text style={styles.name}>{item.name}</Text>
           <Text style={styles.time}>{item.time}</Text>
         </View>
+
+        {/* Ô nhập số tiền */}
+        {checked && (
+          <TextInput
+  style={[
+    styles.amountInput,
+    { width: Math.max(80, (amounts[item.id]?.length || 1) * 10) },
+  ]}
+  keyboardType="numeric"
+  placeholder="0"
+  value={amounts[item.id] || ""}
+  onChangeText={(text) => handleAmountChange(item.id, text)}
+  textAlign="right"
+/>
+
+        )}
       </TouchableOpacity>
     );
   };
@@ -119,6 +151,32 @@ export default function SelectPayerScreen() {
         <Text>Tất cả</Text>
       </TouchableOpacity>
 
+      {/* 🔹 Nút Chia đều */}
+<TouchableOpacity
+  style={styles.splitEvenBtn}
+  onPress={() => {
+    if (selected.length === 0) {
+      alert("Vui lòng chọn ít nhất 1 người để chia đều");
+      return;
+    }
+
+    // ví dụ bạn có thể nhập tổng tiền ở đây (hoặc lấy từ props)
+    const total = 900000; // ⚠️ bạn có thể thay thành biến động
+    const perPerson = Math.floor(total / selected.length);
+
+    const formatted = perPerson.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    const newAmounts = {};
+    selected.forEach((id) => {
+      newAmounts[id] = formatted;
+    });
+
+    setAmounts(newAmounts);
+  }}
+>
+  <Ionicons name="swap-horizontal" size={18} color="#2ECC71" />
+  <Text style={{ marginLeft: 6 }}>Chia đều</Text>
+</TouchableOpacity>
+
       {/* Footer với avatar selected */}
       {selected.length > 0 && (
         <View style={styles.footer}>
@@ -144,7 +202,12 @@ export default function SelectPayerScreen() {
 
           <TouchableOpacity
             style={styles.nextBtn}
-            onPress={() => router.push("/chat/info-split-bill")}
+            onPress={() =>
+              router.push({
+                pathname: "/chat/info-split-bill",
+                params: { selected, amounts: JSON.stringify(amounts) },
+              })
+            }
           >
             <Ionicons name="arrow-forward" size={22} color="#fff" />
           </TouchableOpacity>
@@ -179,13 +242,14 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
   },
   avatarBox: { position: "relative", marginRight: 12 },
   avatar: { width: 40, height: 40, borderRadius: 20 },
-  checkIcon: { position: "absolute", bottom: -2, right: -2 },
   name: { fontSize: 15, fontWeight: "500" },
   time: { fontSize: 12, color: "#777" },
   allRow: {
@@ -230,4 +294,23 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 2,
   },
+  amountInput: {
+    width: 80,
+    height: 38,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    textAlign: "right",
+    paddingRight: 8,
+    paddingVertical: 6,
+    fontSize: 14,
+  },
+  splitEvenBtn: {
+  flexDirection: "row",
+  alignItems: "center",
+  paddingHorizontal: 12,
+  paddingVertical: 8,
+  borderTopWidth: 1,
+  borderColor: "#eee",
+},
 });

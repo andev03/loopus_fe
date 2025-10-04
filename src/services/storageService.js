@@ -58,4 +58,16 @@ export const clearUser = async () => {
   } catch (error) {
     console.error("Error clearing user:", error);
   }
+
+  
+};
+
+export const getUserId = async () => {
+  try {
+    const user = await getUser();
+    return user ? user.userId : null;
+  } catch (error) {
+    console.error("Error getting userId:", error);
+    return null;
+  }
 };
