@@ -4,23 +4,23 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ScrollView,
-  Platform,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import styles from "./CreatePoll.styles";
+import { pollService } from "../../../services/pollService";
+import { getUser } from "../../../services/storageService";
 
 export default function CreatePollScreen() {
-  const { groupId } = useLocalSearchParams(); // Lấy groupId từ params
+  const { groupId } = useLocalSearchParams(); // lấy groupId từ params
   const [title, setTitle] = useState("");
   const [options, setOptions] = useState(["", ""]);
+  
 
-  const handleAddOption = () => {
-    setOptions([...options, ""]);
-  };
+  const handleAddOption = () => setOptions([...options, ""]);
 
   const handleChangeOption = (text, index) => {
     const newOptions = [...options];
@@ -33,27 +33,75 @@ export default function CreatePollScreen() {
     setOptions(newOptions.length ? newOptions : [""]);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!groupId) {
-      alert("Không tìm thấy groupId, vui lòng thử lại");
-      console.log("❌ Lỗi: groupId is undefined");
+      Alert.alert("Lỗi", "Không tìm thấy groupId");
+      console.log("❌ groupId is undefined");
+      return;
+    }
+    if (!title.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập nội dung bình chọn");
       return;
     }
 
-    const poll = { 
-      id: Date.now().toString(),
-      type: "poll",
-      title, 
-      options: options.filter((o) => o.trim() !== "").map(opt => ({
-        text: opt,
-        votes: [], // danh sách userId đã vote
-      }))
-    };
+    const optionsFiltered = options.filter((o) => o.trim() !== "");
+    if (optionsFiltered.length < 2) {
+      Alert.alert("Lỗi", "Cần ít nhất 2 lựa chọn");
+      return;
+    }
 
-    router.push({
-      pathname: `/chat/${groupId}`,
-      params: { poll: JSON.stringify(poll) },
-    });
+    try {
+      // ✅ Lấy user từ storage
+      const user = await getUser();
+      console.log("📦 User từ AsyncStorage:", user);
+
+      const userId = user?.userId || user?.id; // tuỳ backend trả về field nào
+      if (!userId) {
+        Alert.alert("Lỗi", "Không tìm thấy userId");
+        return;
+      }
+
+      console.log("🚀 Creating poll with:", {
+        groupId,
+        userId,
+        title,
+        options: optionsFiltered,
+      });
+
+      const res = await pollService.createPoll(groupId, userId, title, optionsFiltered);
+
+      if (res.success) {
+  Alert.alert("Thành công", res.message);
+  console.log("🎉 Poll created:", res.data);
+  const pollData = res.data;
+
+const formattedPoll = {
+  id: pollData.pollId || Date.now().toString(),  
+  type: "poll",
+  title: pollData.title || title,   // 👈 fallback về state title
+  options: (pollData.options || optionsFiltered).map((opt) => ({
+    text: opt.text || opt.optionText || opt, // fallback nếu backend trả text khác
+    votes: opt.votes || [],
+  })),
+  sender: user.fullName || "Bạn",
+  avatarUrl: user.avatarUrl || "https://via.placeholder.com/150",
+  time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+  isCurrentUser: true,
+};
+
+router.push({
+  pathname: `/chat/${groupId}`,
+  params: { poll: JSON.stringify(formattedPoll) },
+});
+
+} else {
+  Alert.alert("Lỗi", res.message);
+  console.log("⚠️ API Error:", res);
+}
+    } catch (err) {
+      Alert.alert("Lỗi", "Không thể kết nối đến server");
+      console.log("❌ Exception:", err);
+    }
   };
 
   return (
@@ -68,30 +116,9 @@ export default function CreatePollScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* top icon card (custom ballot-like icon) */}
-        <View style={styles.topCard}>
-          <View style={styles.iconContainer}>
-            {/* diamond (rotated square with border) */}
-            <View style={styles.diamond}>
-              {/* counter-rotate the check so it appears upright inside the rotated diamond */}
-              <Ionicons
-                name="checkmark"
-                size={18}
-                color="#2ECC71"
-                style={{ transform: [{ rotate: "-45deg" }] }}
-              />
-            </View>
-
-            {/* small rounded box under the diamond */}
-            <View style={styles.box} />
-          </View>
-        </View>
-
-        {/* main card */}
         <View style={styles.card}>
           <Text style={styles.label}>Thăm dò ý kiến...</Text>
 
-          {/* <-- Giữ nguyên ô nhập câu hỏi như bạn yêu cầu --> */}
           <TextInput
             style={styles.input}
             placeholder="Nhập nội dung bình chọn..."
@@ -99,7 +126,6 @@ export default function CreatePollScreen() {
             onChangeText={setTitle}
           />
 
-          {/* Option rows */}
           {options.map((opt, idx) => (
             <View key={idx} style={styles.optionRow}>
               <Ionicons
@@ -124,15 +150,13 @@ export default function CreatePollScreen() {
             </View>
           ))}
 
-          {/* add option */}
           <TouchableOpacity style={styles.addRow} onPress={handleAddOption}>
             <Ionicons name="add-circle-outline" size={20} color="#2ECC71" />
-            <Text style={styles.addOption}>  Thêm bình chọn</Text>
+            <Text style={styles.addOption}> Thêm bình chọn</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
 
-      {/* submit button fixed at bottom */}
       <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
         <Text style={styles.submitText}>Bình chọn</Text>
       </TouchableOpacity>
