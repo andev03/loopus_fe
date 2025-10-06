@@ -15,10 +15,9 @@ import { pollService } from "../../../services/pollService";
 import { getUser } from "../../../services/storageService";
 
 export default function CreatePollScreen() {
-  const { groupId } = useLocalSearchParams(); // lấy groupId từ params
+  const { groupId } = useLocalSearchParams(); // ✅ Lấy groupId từ params
   const [title, setTitle] = useState("");
   const [options, setOptions] = useState(["", ""]);
-  
 
   const handleAddOption = () => setOptions([...options, ""]);
 
@@ -36,9 +35,9 @@ export default function CreatePollScreen() {
   const handleSubmit = async () => {
     if (!groupId) {
       Alert.alert("Lỗi", "Không tìm thấy groupId");
-      console.log("❌ groupId is undefined");
       return;
     }
+
     if (!title.trim()) {
       Alert.alert("Lỗi", "Vui lòng nhập nội dung bình chọn");
       return;
@@ -51,11 +50,11 @@ export default function CreatePollScreen() {
     }
 
     try {
-      // ✅ Lấy user từ storage
+      // ✅ Lấy user từ AsyncStorage
       const user = await getUser();
       console.log("📦 User từ AsyncStorage:", user);
 
-      const userId = user?.userId || user?.id; // tuỳ backend trả về field nào
+      const userId = user?.userId || user?.id;
       if (!userId) {
         Alert.alert("Lỗi", "Không tìm thấy userId");
         return;
@@ -71,33 +70,37 @@ export default function CreatePollScreen() {
       const res = await pollService.createPoll(groupId, userId, title, optionsFiltered);
 
       if (res.success) {
-  Alert.alert("Thành công", res.message);
-  console.log("🎉 Poll created:", res.data);
-  const pollData = res.data;
+        Alert.alert("Thành công", res.message);
+        console.log("🎉 Poll created:", res.data);
 
-const formattedPoll = {
-  id: pollData.pollId || Date.now().toString(),  
-  type: "poll",
-  title: pollData.title || title,   // 👈 fallback về state title
-  options: (pollData.options || optionsFiltered).map((opt) => ({
-    text: opt.text || opt.optionText || opt, // fallback nếu backend trả text khác
-    votes: opt.votes || [],
-  })),
-  sender: user.fullName || "Bạn",
-  avatarUrl: user.avatarUrl || "https://via.placeholder.com/150",
-  time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-  isCurrentUser: true,
-};
+        const pollData = res.data || {};
 
-router.push({
-  pathname: `/chat/${groupId}`,
-  params: { poll: JSON.stringify(formattedPoll) },
-});
+        // ✅ Chuẩn hóa dữ liệu trả về từ backend
+        const formattedPoll = {
+          id: pollData._id || pollData.pollId || Date.now().toString(),
+          type: "poll",
+          title: pollData.name || pollData.title || title,
+          options: (pollData.options || optionsFiltered).map((opt) => ({
+            text: opt.text || opt.optionText || opt,
+            votes: opt.votes || [],
+          })),
+          sender: user.fullName || user.name || "Bạn",
+          avatarUrl: user.avatarUrl || "https://via.placeholder.com/150",
+          time: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          isCurrentUser: true,
+        };
 
-} else {
-  Alert.alert("Lỗi", res.message);
-  console.log("⚠️ API Error:", res);
-}
+        router.push({
+          pathname: `/chat/${groupId}`,
+          params: { poll: JSON.stringify(formattedPoll) },
+        });
+      } else {
+        Alert.alert("Lỗi", res.message);
+        console.log("⚠️ API Error:", res);
+      }
     } catch (err) {
       Alert.alert("Lỗi", "Không thể kết nối đến server");
       console.log("❌ Exception:", err);

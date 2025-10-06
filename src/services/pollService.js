@@ -15,7 +15,7 @@ export const pollService = {
       const res = await axios.post(`${API_URL}/create`, {
         groupId,
         userId,
-        title,
+        name: title,
         options,
       });
 
