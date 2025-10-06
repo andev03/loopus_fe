@@ -172,4 +172,18 @@ updateGroupAvatar: async (groupId, fileUri) => {
     return { success: false, error };
   }
 },
+
+deleteGroup: async (groupId) => {
+  try {
+    const res = await axios.delete(`${API_SINGLE}?groupId=${groupId}`);
+    if (res.status === 200) {
+      console.log("✅ Giải tán nhóm thành công:", res.data);
+      return { success: true, data: res.data };
+    }
+    return { success: false, data: res.data };
+  } catch (error) {
+    console.error("❌ Lỗi giải tán nhóm:", error.response?.data || error.message);
+    return { success: false, error };
+  }
+},
 };

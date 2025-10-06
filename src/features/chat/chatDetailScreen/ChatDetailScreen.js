@@ -35,6 +35,7 @@ export default function ChatDetailScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [longPressedEvent, setLongPressedEvent] = useState(null);
+  const [eventStatuses, setEventStatuses] = useState({});
 
   useEffect(() => {
     const fetchChats = async () => {
@@ -260,6 +261,11 @@ useEffect(() => {
             if (res.success) {
               setMessages((prev) => prev.filter((m) => m.id !== eventId));
               await AsyncStorage.setItem(`messages_${groupId}`, JSON.stringify(messages.filter((m) => m.id !== eventId)));
+              setEventStatuses(prev => {
+                const newStatuses = { ...prev };
+                delete newStatuses[eventId];
+                return newStatuses;
+              });
               Alert.alert("Thành công", "Đã xóa nhắc hẹn");
               setLongPressedEvent(null);
             } else {
@@ -355,38 +361,6 @@ useEffect(() => {
                 <Text style={styles.eventTime}>Lúc {eventDate.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</Text>
               </View>
             </View>
-            <View style={styles.eventActions}>
-              <TouchableOpacity onPress={async () => {
-                console.log("🔴 [DEBUG] Bấm Từ chối sự kiện:", item.id);
-                if (!user) return;
-                try {
-                  const payload = { eventId: item.id, userId: user.userId, status: "DECLINED" };
-                  console.log("📤 Gửi request:", payload);
-                  const res = await eventService.processInvite(payload);
-                  console.log("📥 Kết quả response:", res);
-                  if (res.success) { Alert.alert("Thành công", "Bạn đã từ chối sự kiện"); } else { Alert.alert("Lỗi", res.message); }
-                } catch (err) {
-                  console.log("🔥 Lỗi khi gọi API:", err);
-                }
-              }}>
-                <Text style={styles.eventReject}>Từ chối</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={async () => {
-                console.log("🟢 [DEBUG] Bấm Tham gia sự kiện:", item.id);
-                if (!user) return;
-                try {
-                  const payload = { eventId: item.id, userId: user.userId, status: "ACCEPTED" };
-                  console.log("📤 Gửi request:", payload);
-                  const res = await eventService.processInvite(payload);
-                  console.log("📥 Kết quả response:", res);
-                  if (res.success) { Alert.alert("Thành công", "Bạn đã tham gia sự kiện"); } else { Alert.alert("Lỗi", res.message); }
-                } catch (err) {
-                  console.log("🔥 Lỗi khi gọi API:", err);
-                }
-              }}>
-                <Text style={styles.eventAccept}>Tham gia</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </TouchableOpacity>
       );
@@ -469,6 +443,31 @@ useEffect(() => {
   };
 
   const repeatTypeMap = { DAILY: "Hàng ngày", WEEKLY: "Hàng tuần", MONTHLY: "Hàng tháng" };
+
+  const handleConfirmEvent = async (eventId, confirmStatus) => {
+    if (!user) return;
+    if (eventStatuses[eventId] === confirmStatus) {
+      return; // Không làm gì nếu đã chọn status này
+    }
+    try {
+      const statusMap = { ACCEPTED: "Tham gia", DECLINED: "Từ chối" };
+      const apiStatus = confirmStatus === "Tham gia" ? "ACCEPTED" : "DECLINED";
+      const payload = { eventId, userId: user.userId, status: apiStatus };
+      console.log("📤 Gửi request:", payload);
+      const res = await eventService.processInvite(payload);
+      console.log("📥 Kết quả response:", res);
+      if (res.success) {
+        setEventStatuses(prev => ({ ...prev, [eventId]: confirmStatus }));
+      } else {
+        Alert.alert("Lỗi", res.message);
+      }
+    } catch (err) {
+      console.log("🔥 Lỗi khi gọi API:", err);
+      Alert.alert("Lỗi", "Không thể xác nhận sự kiện");
+    }
+  };
+
+  const currentEventStatus = selectedEvent ? eventStatuses[selectedEvent.eventId] : null;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
@@ -706,6 +705,54 @@ console.log("📥 [DEBUG] Response vote:", res);
                     <Text style={styles.eventModalText}>Giờ: {selectedEvent.eventTime}</Text>
                     <Text style={styles.eventModalText}>Người tạo: {selectedEvent.creator?.fullName}</Text>
                     <Text style={styles.eventModalText}>Lặp lại: {repeatTypeMap[selectedEvent?.repeatType] || "Không"}</Text>
+                    {user && (
+                      <View style={styles.confirmationSection}>
+                        {currentEventStatus && (
+                          <View style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}>
+                            <Text style={styles.eventModalText}>Bạn xác nhận: {currentEventStatus}</Text>
+                            <Ionicons name="checkmark-circle" size={20} color="green" style={{ marginLeft: 5 }} />
+                          </View>
+                        )}
+                        <View style={styles.eventActions}>
+                          <TouchableOpacity
+                            style={[
+                              styles.eventReject,
+                              currentEventStatus === "Từ chối" && { backgroundColor: "#ffdddd", borderWidth: 1, borderColor: "#ff0000" }
+                            ]}
+                            onPress={() => handleConfirmEvent(selectedEvent.eventId, "Từ chối")}
+                          >
+                            <Ionicons
+                              name={currentEventStatus === "Từ chối" ? "checkmark-circle" : "radio-button-off"}
+                              size={20}
+                              color="#ff0000"
+                              style={{ marginRight: 5 }}
+                            />
+                            <Text style={[
+                              styles.eventReject,
+                              currentEventStatus === "Từ chối" && { color: "#ff0000", fontWeight: "bold" }
+                            ]}>Từ chối</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[
+                              styles.eventAccept,
+                              currentEventStatus === "Tham gia" && { backgroundColor: "#ddffdd", borderWidth: 1, borderColor: "#00ff00" }
+                            ]}
+                            onPress={() => handleConfirmEvent(selectedEvent.eventId, "Tham gia")}
+                          >
+                            <Ionicons
+                              name={currentEventStatus === "Tham gia" ? "checkmark-circle" : "radio-button-off"}
+                              size={20}
+                              color="#00ff00"
+                              style={{ marginRight: 5 }}
+                            />
+                            <Text style={[
+                              styles.eventAccept,
+                              currentEventStatus === "Tham gia" && { color: "#00ff00", fontWeight: "bold" }
+                            ]}>Tham gia</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
                     <View style={styles.eventModalActions}>
                       <TouchableOpacity style={styles.eventModalActionBtn} onPress={() => {
                         setEditEvent({
