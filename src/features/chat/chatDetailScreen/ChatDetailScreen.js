@@ -100,6 +100,20 @@ export default function ChatDetailScreen() {
     if (newPoll) {
       const poll = JSON.parse(newPoll);
       poll.id = String(poll.id || poll.pollId);
+      poll.type = "poll";
+      poll.title = poll.name || poll.title || poll.question || poll.content || poll.pollName || "Cuộc bình chọn";
+      if (poll.options && Array.isArray(poll.options)) {
+        poll.options = poll.options.map((o) => ({
+          optionId: o.optionId || o.id || o._id,
+          text: o.optionText || o.text || o.name,
+          votes: Array.isArray(o.votes) ? o.votes : [],
+        }));
+      }
+      poll.sender = poll.createdBy?.fullName || poll.creator?.fullName || "Thành viên";
+      poll.senderId = poll.createdBy?.userId || poll.creator?.userId;
+      poll.avatarUrl = poll.createdBy?.avatarUrl || poll.creator?.avatarUrl || "https://via.placeholder.com/150";
+      poll.time = new Date(poll.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      poll.isCurrentUser = user?.userId === (poll.createdBy?.userId || poll.creator?.userId);
       setMessages((prev) => {
         if (prev.some((msg) => String(msg.id) === poll.id)) return prev;
         const updated = [...prev, poll];
@@ -156,11 +170,11 @@ useEffect(() => {
           return {
             id: String(p.id || p.pollId),
             type: "poll",
-            title: p.title || p.question || p.content || p.pollName || "Cuộc bình chọn",
+            title: p.name || p.title || p.question || p.content || p.pollName || "Cuộc bình chọn",
             options: (p.options || []).map((o) => {
               console.log("   🔎 Raw option:", o);
               return {
-                optionId: o.optionId || o.id || o._id,   // 👈 fix giữ id
+                optionId: o.optionId || o.id || o._id,  
                 text: o.optionText || o.text || o.name,
                 votes: Array.isArray(o.votes) ? o.votes : [],
               };
