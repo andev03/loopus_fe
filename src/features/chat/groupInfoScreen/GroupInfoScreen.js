@@ -15,7 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, router } from "expo-router";
 import { groupService } from "../../../services/groupService";
-import { getUser } from "../../../services/storageService";
+import { getUserId, getUser } from "../../../services/storageService";
 import styles from "./GroupInfoScreen.styles";
 import * as ImagePicker from "expo-image-picker";
 import { chatService } from "../../../services/chatService";
@@ -27,14 +27,17 @@ export default function GroupInfoScreen() {
   const [images, setImages] = useState([]);
   const [group, setGroup] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
-  // state cho modal đổi tên
+  // modal đổi tên
   const [renameVisible, setRenameVisible] = useState(false);
   const [newName, setNewName] = useState("");
 
   useEffect(() => {
-    const fetchGroup = async () => {
-      setLoading(true);
+    const initData = async () => {
+      const userId = await getUserId();
+      setCurrentUserId(userId);
+
       try {
         const user = await getUser();
         if (!user?.userId) {
@@ -42,26 +45,11 @@ export default function GroupInfoScreen() {
           setLoading(false);
           return;
         }
-        const userId = user.userId;
-
-        const result = await groupService.getGroups(userId);
+        const result = await groupService.getGroups(user.userId);
         if (result.success && Array.isArray(result.data?.data)) {
           const groups = result.data.data;
-          let selected = null;
-
-          if (groupIdParam) {
-            selected = groups.find((g) => g.groupId === groupIdParam);
-          }
-          if (!selected) {
-            selected =
-              groups.find((g) => g.name === "group") ||
-              groups.find((g) => g.createdBy === userId) ||
-              groups[0] ||
-              null;
-          }
-          setGroup(selected);
-        } else {
-          setGroup(null);
+          const selected = groups.find((g) => g.groupId === groupIdParam);
+          setGroup(selected || null);
         }
       } catch (error) {
         console.log("❌ Lỗi khi fetchGroups:", error);
@@ -69,8 +57,7 @@ export default function GroupInfoScreen() {
         setLoading(false);
       }
     };
-
-    fetchGroup();
+    initData();
   }, [groupIdParam]);
 
   useEffect(() => {
@@ -78,7 +65,6 @@ export default function GroupInfoScreen() {
       if (!groupIdParam) return;
       const res = await chatService.getImagesByGroup(groupIdParam);
       if (res.success) {
-        // 👉 sắp xếp mới nhất trước
         const sorted = [...res.data].sort(
           (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
         );
@@ -88,18 +74,12 @@ export default function GroupInfoScreen() {
     fetchImages();
   }, [groupIdParam]);
 
-  // Hàm đổi tên nhóm
+  // Đổi tên nhóm
   const handleRenameGroup = async () => {
     const maxLength = 30;
-
-    if (!newName.trim()) {
-      Alert.alert("Lỗi", "Tên nhóm không được để trống");
-      return;
-    }
-    if (newName.length > maxLength) {
-      Alert.alert("Lỗi", `Tên nhóm không được vượt quá ${maxLength} ký tự`);
-      return;
-    }
+    if (!newName.trim()) return Alert.alert("Lỗi", "Tên nhóm không được để trống");
+    if (newName.length > maxLength)
+      return Alert.alert("Lỗi", `Tên nhóm không vượt quá ${maxLength} ký tự`);
 
     try {
       const payload = {
@@ -118,6 +98,37 @@ export default function GroupInfoScreen() {
     } catch (err) {
       Alert.alert("Lỗi", err.message || "Có lỗi xảy ra");
     }
+  };
+
+  // Giải tán nhóm
+  const handleDissolveGroup = async () => {
+    Alert.alert(
+      "Giải tán nhóm",
+      "Bạn có chắc muốn giải tán nhóm này không? ành động này không thể hoàn tác.",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Giải tán",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const res = await groupService.deleteGroup(group.groupId);
+              if (res.success) {
+                Alert.alert("Thành công", "Nhóm đã được giải tán");
+                router.replace("/(tabs)/chat");
+              } else {
+                Alert.alert(
+                  "Lỗi",
+                  res.error?.message || "Không thể giải tán nhóm"
+                );
+              }
+            } catch (err) {
+              Alert.alert("Lỗi", err.message || "Có lỗi xảy ra");
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -146,10 +157,7 @@ export default function GroupInfoScreen() {
     <SafeAreaView style={styles.safeArea}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.title}>Tùy chọn</Text>
@@ -208,11 +216,11 @@ export default function GroupInfoScreen() {
             </TouchableOpacity>
             <Text style={styles.actionText}>Thêm thành viên</Text>
           </View>
+
           <View style={styles.actionItem}>
             <TouchableOpacity
               style={styles.iconCircle}
               onPress={async () => {
-                // Mở picker chọn ảnh
                 const result = await ImagePicker.launchImageLibraryAsync({
                   mediaTypes: ImagePicker.MediaTypeOptions.Images,
                   allowsEditing: true,
@@ -222,8 +230,6 @@ export default function GroupInfoScreen() {
 
                 if (!result.canceled) {
                   const fileUri = result.assets[0].uri;
-                  console.log("📷 File URI:", fileUri);
-
                   try {
                     const res = await groupService.updateGroupAvatar(
                       group.groupId,
@@ -231,15 +237,12 @@ export default function GroupInfoScreen() {
                     );
                     if (res.success) {
                       Alert.alert("Thành công", "Đổi ảnh nhóm thành công");
-                      setGroup({ ...group, avatarUrl: fileUri }); // update UI
+                      setGroup({ ...group, avatarUrl: fileUri });
                     } else {
                       Alert.alert("Lỗi", "Không thể đổi ảnh nhóm");
                     }
                   } catch (err) {
-                    Alert.alert(
-                      "Lỗi",
-                      err.message || "Có lỗi xảy ra khi đổi ảnh nhóm"
-                    );
+                    Alert.alert("Lỗi", err.message || "Có lỗi xảy ra khi đổi ảnh");
                   }
                 }
               }}
@@ -256,7 +259,6 @@ export default function GroupInfoScreen() {
             <Ionicons name="image" size={20} color="#666" />
             <Text style={styles.optionText}>Ảnh & Video</Text>
           </View>
-
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {images.slice(0, 5).map((img, index) => (
               <TouchableOpacity
@@ -277,7 +279,7 @@ export default function GroupInfoScreen() {
           </ScrollView>
         </View>
 
-        {/* Các option khác */}
+        {/* Xem thành viên */}
         <TouchableOpacity
           style={styles.option}
           onPress={() =>
@@ -289,64 +291,62 @@ export default function GroupInfoScreen() {
         >
           <Ionicons name="people" size={20} color="#666" />
           <Text style={styles.optionText}>Xem thành viên</Text>
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color="#ccc"
-            style={styles.arrow}
-          />
+          <Ionicons name="chevron-forward" size={20} color="#ccc" />
         </TouchableOpacity>
 
+        {/* Mã QR */}
         <TouchableOpacity
           style={styles.option}
           onPress={() => router.push("/chat/group-qr")}
         >
           <Ionicons name="qr-code" size={20} color="#666" />
           <Text style={styles.optionText}>Mã QR & Link Nhóm</Text>
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color="#ccc"
-            style={styles.arrow}
-          />
+          <Ionicons name="chevron-forward" size={20} color="#ccc" />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.option, { marginTop: 20 }]}
-          onPress={async () => {
-            Alert.alert(
-              "Rời khỏi nhóm",
-              "Bạn có chắc muốn rời khỏi nhóm này?",
-              [
-                { text: "Hủy", style: "cancel" },
-                {
-                  text: "Rời nhóm",
-                  style: "destructive",
-                  onPress: async () => {
-                    try {
-                      const user = await getUser();
-                      if (!user?.userId || !group?.groupId) return;
+        {/* Nếu là chủ nhóm thì hiển thị nút giải tán */}
+        {group.createdBy === currentUserId && (
+          <TouchableOpacity
+            style={[styles.option, { marginTop: 20 }]}
+            onPress={handleDissolveGroup}
+          >
+            <Ionicons name="trash" size={20} color="red" />
+            <Text style={[styles.optionText, { color: "red" }]}>
+              Giải tán nhóm
+            </Text>
+          </TouchableOpacity>
+        )}
 
-                      const res = await groupService.leaveGroup(
-                        group.groupId,
-                        user.userId
-                      );
-                      if (res.success) {
-                        Alert.alert("Thông báo", "Bạn đã rời nhóm thành công");
-                        router.replace("/(tabs)/chat");
-                      } else {
-                        Alert.alert(
-                          "Lỗi",
-                          "Không thể rời nhóm, vui lòng thử lại"
-                        );
-                      }
-                    } catch (err) {
-                      Alert.alert("Lỗi", err.message || "Có lỗi xảy ra");
+        {/* Nút rời nhóm */}
+        <TouchableOpacity
+          style={[styles.option, { marginTop: 10 }]}
+          onPress={async () => {
+            Alert.alert("Rời khỏi nhóm", "Bạn có chắc muốn rời khỏi nhóm này?", [
+              { text: "Hủy", style: "cancel" },
+              {
+                text: "Rời nhóm",
+                style: "destructive",
+                onPress: async () => {
+                  try {
+                    const user = await getUser();
+                    if (!user?.userId || !group?.groupId) return;
+
+                    const res = await groupService.leaveGroup(
+                      group.groupId,
+                      user.userId
+                    );
+                    if (res.success) {
+                      Alert.alert("Thông báo", "Bạn đã rời nhóm thành công");
+                      router.replace("/(tabs)/chat");
+                    } else {
+                      Alert.alert("Lỗi", "Không thể rời nhóm, vui lòng thử lại");
                     }
-                  },
+                  } catch (err) {
+                    Alert.alert("Lỗi", err.message || "Có lỗi xảy ra");
+                  }
                 },
-              ]
-            );
+              },
+            ]);
           }}
         >
           <Ionicons name="exit" size={20} color="red" />
@@ -396,9 +396,7 @@ export default function GroupInfoScreen() {
                 <Text style={{ color: "red" }}>Hủy</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleRenameGroup}>
-                <Text style={{ color: "#2ECC71", fontWeight: "bold" }}>
-                  Lưu
-                </Text>
+                <Text style={{ color: "#2ECC71", fontWeight: "bold" }}>Lưu</Text>
               </TouchableOpacity>
             </View>
           </View>
