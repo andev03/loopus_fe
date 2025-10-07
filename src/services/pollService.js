@@ -20,7 +20,7 @@ export const pollService = {
       });
 
       console.log("✅ createPoll response:", res.data);
-
+      console.log("🧩 Options được trả về từ API:", res.data?.data?.options);
       const success = res.data?.status === 0 || res.data?.status === 200;
 
       return {
@@ -67,33 +67,59 @@ export const pollService = {
   }
 },
 getPolls: async (groupId) => {
-    try {
-      console.log("📤 Fetching polls for groupId:", groupId);
+  try {
+    console.log("📤 Fetching polls for groupId:", groupId);
 
-      const res = await axios.get(`https://loopus.nguyenhoangan.site/api/polls`, {
-        params: { groupId }, // query param
+    const res = await axios.get(`https://loopus.nguyenhoangan.site/api/polls`, {
+      params: { groupId },
+    });
+
+    console.log("✅ getPolls response:", JSON.stringify(res.data, null, 2));
+
+    // ✅ KIỂM TRA CHI TIẾT OPTIONS
+    if (res.data?.data && Array.isArray(res.data.data)) {
+      res.data.data.forEach((poll, pIndex) => {
+        console.log(`\n📋 Poll ${pIndex}: ${poll.name || poll.title}`);
+        console.log(`   pollId: ${poll.id || poll.pollId}`);
+        
+        if (poll.options && Array.isArray(poll.options)) {
+          poll.options.forEach((opt, oIndex) => {
+            console.log(`   📌 Option ${oIndex}:`, {
+              optionId: opt.optionId,
+              id: opt.id,
+              _id: opt._id,
+              text: opt.optionText || opt.text,
+              hasVotes: Array.isArray(opt.votes),
+            });
+            
+            if (!opt.optionId && !opt.id && !opt._id) {
+              console.error(`   ❌ Option ${oIndex} KHÔNG CÓ ID NÀO CẢ!`);
+            }
+          });
+        } else {
+          console.error(`   ❌ Poll không có options hoặc options không phải array!`);
+        }
       });
-
-      console.log("✅ getPolls response:", res.data);
-
-      const success = res.data?.status === 0 || res.data?.status === 200;
-
-      return {
-        success,
-        data: res.data?.data || [],
-        message:
-          res.data?.message ||
-          (success ? "Lấy danh sách bình chọn thành công" : "Lấy danh sách thất bại"),
-      };
-    } catch (error) {
-      console.error("❌ Error fetching polls:", error.response?.data || error.message);
-      return {
-        success: false,
-        data: [],
-        message: error.response?.data?.message || "Không thể lấy danh sách bình chọn",
-      };
     }
-  },
+
+    const success = res.data?.status === 0 || res.data?.status === 200;
+
+    return {
+      success,
+      data: res.data?.data || [],
+      message:
+        res.data?.message ||
+        (success ? "Lấy danh sách bình chọn thành công" : "Lấy danh sách thất bại"),
+    };
+  } catch (error) {
+    console.error("❌ Error fetching polls:", error.response?.data || error.message);
+    return {
+      success: false,
+      data: [],
+      message: error.response?.data?.message || "Không thể lấy danh sách bình chọn",
+    };
+  }
+},
 vote: async (pollId, optionId, userId) => {  
   try {
     console.log("📤 Sending vote request:", { pollId, optionId, userId });

@@ -100,7 +100,7 @@ export default StyleSheet.create({
   position: 'absolute',
   right: 20,
   bottom: 20,
-  backgroundColor: '#007AFF', // Màu xanh iOS, chỉnh nếu cần
+  backgroundColor: '#4CAF50', 
   width: 60,
   height: 60,
   borderRadius: 30,
