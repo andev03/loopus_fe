@@ -96,4 +96,20 @@ export default StyleSheet.create({
     alignItems: "center",
   },
   dealImageFull: { width: "100%", height: "100%" },
+  chatFAB: {
+  position: 'absolute',
+  right: 20,
+  bottom: 20,
+  backgroundColor: '#007AFF', // Màu xanh iOS, chỉnh nếu cần
+  width: 60,
+  height: 60,
+  borderRadius: 30,
+  justifyContent: 'center',
+  alignItems: 'center',
+  elevation: 5, // Android shadow
+  shadowColor: '#000', // iOS shadow
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.25,
+  shadowRadius: 3.84,
+},
 });
