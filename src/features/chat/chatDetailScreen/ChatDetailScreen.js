@@ -37,46 +37,63 @@ export default function ChatDetailScreen() {
   const [longPressedEvent, setLongPressedEvent] = useState(null);
   const [eventStatuses, setEventStatuses] = useState({});
 
-  useEffect(() => {
-    const fetchChats = async () => {
-      try {
-        const u = await getUser();
-        setUser(u);
-        if (!groupId || groupId.length < 20) {
-          console.log("❌ groupId không hợp lệ:", groupId);
-          setLoading(false);
-          return;
-        }
-        console.log("✅ Received groupId:", groupId, "userId:", u.userId);
-        const cachedMessages = await AsyncStorage.getItem(`messages_${groupId}`);
-        if (cachedMessages) {
-          setMessages(JSON.parse(cachedMessages));
-        }
-        const res = await chatService.getChatsByGroup(groupId, u.userId);
-        if (res.success) {
-          if (res.data.length > 0) {
-            const mapped = res.data.map((m) => ({ ...m, isCurrentUser: m.sender === "Bạn" }));
-            setMessages((prev) => {
-              const merged = [...mapped, ...prev].reduce((acc, msg) => {
-                if (!acc.some((m) => m.id === msg.id)) acc.push(msg);
-                return acc;
-              }, []);
-              return merged;
-            });
-          } else {
-            console.log("Không tìm thấy tin nhắn, giữ nguyên tin nhắn hiện tại");
-          }
-        } else {
-          console.log("Lỗi API:", res.message);
-        }
-      } catch (err) {
-        console.log("❌ Lỗi fetch chats:", err);
-      } finally {
+ useEffect(() => {
+  const fetchChats = async () => {
+    try {
+      const u = await getUser();
+      setUser(u);
+      if (!groupId || groupId.length < 20) {
+        console.log("❌ groupId không hợp lệ:", groupId);
         setLoading(false);
+        return;
       }
-    };
-    fetchChats();
-  }, [groupId]);
+      console.log("✅ Received groupId:", groupId, "userId:", u.userId);
+      
+      // ✅ Load từ cache và normalize
+      const cachedMessages = await AsyncStorage.getItem(`messages_${groupId}`);
+      if (cachedMessages) {
+        const parsed = JSON.parse(cachedMessages);
+        const normalized = parsed.map((msg) => {
+          if (msg.type === "poll") {
+            return {
+              ...msg,
+              options: (msg.options || []).map((o) => ({
+                optionId: o.optionId || o.id || o._id,
+                text: o.optionText || o.text || o.name || "Không tên",
+                votes: Array.isArray(o.votes) ? o.votes : [],
+              })),
+            };
+          }
+          return msg;
+        });
+        setMessages(normalized);
+      }
+      
+      const res = await chatService.getChatsByGroup(groupId, u.userId);
+      if (res.success) {
+        if (res.data.length > 0) {
+          const mapped = res.data.map((m) => ({ ...m, isCurrentUser: m.sender === "Bạn" }));
+          setMessages((prev) => {
+            const merged = [...mapped, ...prev].reduce((acc, msg) => {
+              if (!acc.some((m) => m.id === msg.id)) acc.push(msg);
+              return acc;
+            }, []);
+            return merged;
+          });
+        } else {
+          console.log("Không tìm thấy tin nhắn, giữ nguyên tin nhắn hiện tại");
+        }
+      } else {
+        console.log("Lỗi API:", res.message);
+      }
+    } catch (err) {
+      console.log("❌ Lỗi fetch chats:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchChats();
+}, [groupId]);
 
   useEffect(() => {
     if (newReminder) {
@@ -103,12 +120,15 @@ export default function ChatDetailScreen() {
       poll.type = "poll";
       poll.title = poll.name || poll.title || poll.question || poll.content || poll.pollName || "Cuộc bình chọn";
       if (poll.options && Array.isArray(poll.options)) {
-        poll.options = poll.options.map((o) => ({
-          optionId: o.optionId || o.id || o._id,
-          text: o.optionText || o.text || o.name,
-          votes: Array.isArray(o.votes) ? o.votes : [],
-        }));
-      }
+  poll.options = (poll.options || []).map((o, i) => {
+  console.log("🧩 [NEW POLL] Option raw:", o);
+  return {
+    optionId: o.optionId || o.id || o._id || o.option?.optionId || `temp-${i}`, // ✅ fallback
+    text: o.optionText || o.text || o.name || "Không tên",
+    votes: Array.isArray(o.votes) ? o.votes : [],
+  };
+});
+}
       poll.sender = poll.createdBy?.fullName || poll.creator?.fullName || "Thành viên";
       poll.senderId = poll.createdBy?.userId || poll.creator?.userId;
       poll.avatarUrl = poll.createdBy?.avatarUrl || poll.creator?.avatarUrl || "https://via.placeholder.com/150";
@@ -158,8 +178,19 @@ export default function ChatDetailScreen() {
 
 useEffect(() => {
   const fetchPolls = async () => {
-    if (!groupId) return;
+    if (!groupId || !user) return;
+    
     try {
+      // ✅ XÓA cache polls cũ
+      const cachedMessages = await AsyncStorage.getItem(`messages_${groupId}`);
+      if (cachedMessages) {
+        const parsed = JSON.parse(cachedMessages);
+        // Chỉ giữ lại messages không phải poll
+        const withoutPolls = parsed.filter(m => m.type !== "poll");
+        await AsyncStorage.setItem(`messages_${groupId}`, JSON.stringify(withoutPolls));
+        setMessages(withoutPolls);
+      }
+      
       const res = await pollService.getPolls(groupId);
       console.log("📥 Polls API response:", res);
 
@@ -171,11 +202,18 @@ useEffect(() => {
             id: String(p.id || p.pollId),
             type: "poll",
             title: p.name || p.title || p.question || p.content || p.pollName || "Cuộc bình chọn",
-            options: (p.options || []).map((o) => {
-              console.log("   🔎 Raw option:", o);
+            options: (p.options || []).map((o, index) => {
+              console.log(`   🔎 Raw option ${index}:`, o);
+              
+              // ✅ Đảm bảo luôn có optionId
+              const optionId = o.optionId || o.id || o._id;
+              if (!optionId) {
+                console.error(`❌ Option ${index} không có optionId!`, o);
+              }
+              
               return {
-                optionId: o.optionId || o.id || o._id,  
-                text: o.optionText || o.text || o.name,
+                optionId: optionId,
+                text: o.optionText || o.text || o.name || "Không tên",
                 votes: Array.isArray(o.votes) ? o.votes : [],
               };
             }),
@@ -188,10 +226,9 @@ useEffect(() => {
         });
 
         setMessages((prev) => {
-          const merged = [...prev, ...polls].reduce((acc, msg) => {
-            if (!acc.some((m) => String(m.id) === String(msg.id))) acc.push(msg);
-            return acc;
-          }, []);
+          // ✅ Thay thế hoàn toàn polls cũ
+          const withoutPolls = prev.filter(m => m.type !== "poll");
+          const merged = [...withoutPolls, ...polls];
           AsyncStorage.setItem(`messages_${groupId}`, JSON.stringify(merged));
           return merged;
         });
@@ -200,6 +237,7 @@ useEffect(() => {
       console.log("❌ Lỗi load polls:", err);
     }
   };
+  
   fetchPolls();
 }, [groupId, user]);
 
@@ -415,16 +453,35 @@ useEffect(() => {
           );
         })}
 
-        <TouchableOpacity
-          style={styles.voteBtn}
-          onPress={() => {
-            setSelectedPoll(item);
-            setVoteModalVisible(true);
-            console.log("🟢 [DEBUG] Mở modal vote cho poll:", item);
-          }}
-        >
-          <Text style={styles.voteText}>Vote</Text>
-        </TouchableOpacity>
+     <TouchableOpacity
+  style={styles.voteBtn}
+  onPress={() => {
+    console.log("🔍 [BEFORE MAPPING] item.options:", JSON.stringify(item.options, null, 2));
+    
+    const safePoll = {
+      ...item,
+      options: (item.options || []).map((o, index) => {
+        console.log(`🔍 [MAPPING ${index}] Raw option:`, JSON.stringify(o, null, 2));
+        
+        const mapped = {
+          optionId: o.optionId || o.id || o._id,
+          text: o.optionText || o.text || o.name || "Không có tên",
+          votes: Array.isArray(o.votes) ? o.votes : [],
+        };
+        
+        console.log(`✅ [MAPPED ${index}] Result:`, JSON.stringify(mapped, null, 2));
+        return mapped;
+      }),
+    };
+
+    console.log("🟢 [FINAL] safePoll.options:", JSON.stringify(safePoll.options, null, 2));
+    setSelectedPoll(safePoll);
+    setVoteModalVisible(true);
+  }}
+>
+  <Text style={styles.voteText}>Vote</Text>
+</TouchableOpacity>
+
       </View>
     </TouchableOpacity>
   );
@@ -550,61 +607,82 @@ useEffect(() => {
           </SafeAreaView>
         )}
         <Modal visible={voteModalVisible} animationType="slide" transparent={true} onRequestClose={() => setVoteModalVisible(false)}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>{selectedPoll?.title}</Text>
-             {selectedPoll?.options.map((opt, idx) => (
-  <TouchableOpacity
-    key={idx}
-    style={styles.modalOption}
-    onPress={async () => {
-      try {
-        console.log("📤 [DEBUG] Gửi vote:", {
-  pollId: selectedPoll.id,
-  optionId: opt.optionId,
-  userId: user.userId,
-});
-        const res = await pollService.vote(
-          selectedPoll.id,
-          opt.optionId,      // optionId trong poll
-          user.userId        // user hiện tại
-        );
-console.log("📥 [DEBUG] Response vote:", res);
-        if (res.success) {
-          // ✅ Cập nhật lại messages (poll đã vote)
-          setMessages((prev) => {
-            const updated = prev.map((m) =>
-              String(m.id) === String(selectedPoll.id)
-                ? {
-                    ...m,
-                    options: m.options.map((o) =>
-                      o.optionId === opt.optionId
-                        ? { ...o, votes: [...o.votes, user.userId] } // thêm user vào danh sách votes
-                        : o
-                    ),
-                  }
-                : m
-            );
-            console.log("✅ [DEBUG] Updated messages:", updated);
-            AsyncStorage.setItem(`messages_${groupId}`, JSON.stringify(updated));
-            return updated;
-          });
+  <View style={styles.modalOverlay}>
+    <View style={styles.modalContent}>
+      <Text style={styles.modalTitle}>{selectedPoll?.title}</Text>
+      
+      {/* ✅ Debug log */}
+      {console.log("🔍 [MODAL RENDER] selectedPoll:", JSON.stringify(selectedPoll, null, 2))}
+      
+      {selectedPoll?.options.map((opt, idx) => {
+        console.log(`🔍 [MODAL OPTION ${idx}]`, JSON.stringify(opt, null, 2));
+        
+        return (
+          <TouchableOpacity
+            key={idx}
+            style={styles.modalOption}
+            onPress={async () => {
+              // ✅ Log trước khi gửi
+              console.log("📤 [VOTE CLICK] opt:", JSON.stringify(opt, null, 2));
+              console.log("📤 [VOTE DATA]:", {
+                pollId: selectedPoll.id,
+                optionId: opt.optionId,
+                userId: user.userId,
+              });
+              
+              if (!opt.optionId) {
+                Alert.alert("❌ Lỗi", "optionId is undefined!");
+                return;
+              }
+              
+              try {
+                const res = await pollService.vote(
+                  selectedPoll.id,
+                  opt.optionId,
+                  user.userId
+                );
+                
+                console.log("📥 [DEBUG] Response vote:", res);
+                
+                if (res.success) {
+                  setMessages((prev) => {
+                    const updated = prev.map((m) => {
+                      if (String(m.id) === String(selectedPoll.id)) {
+                        return {
+                          ...m,
+                          options: m.options.map((o) =>
+                            o.optionId === opt.optionId
+                              ? { 
+                                  ...o, 
+                                  votes: [...(o.votes || []), { user: { userId: user.userId } }]
+                                }
+                              : o
+                          ),
+                        };
+                      }
+                      return m;
+                    });
+                    
+                    AsyncStorage.setItem(`messages_${groupId}`, JSON.stringify(updated));
+                    return updated;
+                  });
 
-          Alert.alert("✅ Thành công", "Bạn đã vote cho option này");
-          setVoteModalVisible(false);
-        } else {
-          Alert.alert("❌ Thất bại", res.message || "Vote thất bại");
-        }
-      } catch (err) {
-        console.error("❌ Vote error:", err);
-        Alert.alert("Lỗi", "Không thể vote");
-      }
-    }}
-  >
-    <Text>{opt.text}</Text>
-    <Text>{opt.votes.length} votes</Text>
-  </TouchableOpacity>
-))}
+                  Alert.alert("✅ Thành công", "Bạn đã vote cho option này");
+                  setVoteModalVisible(false);
+                } else {
+                  Alert.alert("❌ Thất bại", res.message || "Vote thất bại");
+                }
+              } catch (err) {
+                console.error("❌ Vote error:", err);
+                Alert.alert("Lỗi", "Không thể vote");
+              }
+            }}
+          >
+            <Text>{opt.text}</Text>
+            <Text>{opt.votes?.length || 0} votes</Text>
+          </TouchableOpacity>
+        );
+      })}
 
               <View style={styles.addOptionRow}>
                 <TextInput placeholder="Thêm lựa chọn..." style={styles.addOptionInput} value={newOption} onChangeText={setNewOption} />
