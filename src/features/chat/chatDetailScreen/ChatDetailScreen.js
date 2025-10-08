@@ -372,7 +372,6 @@ useEffect(() => {
               setSelectedEvent({
                 eventId: localEvent.id,
                 title: localEvent.content,
-                description: localEvent.description || "",
                 eventDate: localEvent.date.split("T")[0],
                 eventTime: localEvent.date.split("T")[1],
                 repeatType: localEvent.repeat,
@@ -726,8 +725,6 @@ useEffect(() => {
                     <Text style={styles.eventModalTitle}>Chỉnh sửa sự kiện</Text>
                     <Text style={styles.eventModalLabel}>Tiêu đề</Text>
                     <TextInput style={styles.eventModalInput} value={editEvent.title} onChangeText={(t) => setEditEvent({ ...editEvent, title: t })} placeholder="Nhập tiêu đề sự kiện" />
-                    <Text style={styles.eventModalLabel}>Mô tả</Text>
-                    <TextInput style={styles.eventModalInput} value={editEvent.description} onChangeText={(t) => setEditEvent({ ...editEvent, description: t })} placeholder="Nhập mô tả (không bắt buộc)" />
                     <Text style={styles.eventModalLabel}>Ngày</Text>
                     <TouchableOpacity style={styles.eventModalInput} onPress={() => setShowDatePicker(true)}>
                       <Text>{editEvent.eventDate || "Chọn ngày"}</Text>
@@ -792,7 +789,6 @@ useEffect(() => {
                 ) : (
                   <>
                     <Text style={styles.eventModalTitle}>{selectedEvent.title}</Text>
-                    <Text style={styles.eventModalText}>Mô tả: {selectedEvent.description || "Không có"}</Text>
                     <Text style={styles.eventModalText}>Ngày: {selectedEvent.eventDate}</Text>
                     <Text style={styles.eventModalText}>Giờ: {selectedEvent.eventTime}</Text>
                     <Text style={styles.eventModalText}>Người tạo: {selectedEvent.creator?.fullName}</Text>
@@ -850,7 +846,6 @@ useEffect(() => {
                         setEditEvent({
                           eventId: selectedEvent.eventId,
                           title: selectedEvent.title,
-                          description: selectedEvent.description,
                           eventDate: selectedEvent.eventDate,
                           eventTime: selectedEvent.eventTime,
                           repeatType: selectedEvent.repeatType,
