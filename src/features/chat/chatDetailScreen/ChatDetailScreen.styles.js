@@ -377,6 +377,46 @@ eventModalLabel: {
   marginTop: 10,
   color: "#333",
 },
+viewParticipantsBtn: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: "#E8F8F5",
+  padding: 12,
+  borderRadius: 8,
+  marginVertical: 15,
+  borderWidth: 1,
+  borderColor: "#2ECC71",
+},
+
+viewParticipantsText: {
+  color: "#2ECC71",
+  fontWeight: "600",
+  fontSize: 15,
+},
+
+participantRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  paddingVertical: 8,
+  paddingHorizontal: 10,
+  backgroundColor: "#F8F9FA",
+  borderRadius: 8,
+  marginBottom: 6,
+},
+
+participantAvatar: {
+  width: 32,
+  height: 32,
+  borderRadius: 16,
+  marginRight: 10,
+},
+
+participantName: {
+  fontSize: 14,
+  color: "#2C3E50",
+  fontWeight: "500",
+},
 });
 
 export default styles;

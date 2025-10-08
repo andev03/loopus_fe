@@ -67,11 +67,6 @@ export const groupService = {
       console.log("✅ Thêm member thành công:", res.data);
       return { success: true, data: res.data };
     } catch (error) {
-      console.error("❌ Lỗi thêm member:", {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message,
-      }); // Cải tiến log lỗi
       return { success: false, error };
     }
   },

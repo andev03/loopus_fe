@@ -25,7 +25,7 @@ export default function SelectPayerScreen() {
   const [loading, setLoading] = useState(false);
   const [excludeId, setExcludeId] = useState(null);
 
-  // 🔹 Xác định excludeId (người trả bởi)
+  // 🔹 Xác định excludeId (người trả)
   useEffect(() => {
     const determineExcludeId = async () => {
       if (payerId === "me") {
@@ -38,27 +38,36 @@ export default function SelectPayerScreen() {
     determineExcludeId();
   }, [payerId]);
 
-  // 🔹 Lấy danh sách thành viên
+  // 🔹 Lấy danh sách thành viên và loại bỏ người trả
   useEffect(() => {
     const fetchMembers = async () => {
       if (!groupId) return;
       setLoading(true);
-      const res = await groupService.viewMembers(groupId);
-      setLoading(false);
-      if (res.success && res.data?.data) {
-        let data = res.data.data;
-        if (excludeId) {
-          data = data.filter((m) => m.user?.userId !== excludeId);
+      try {
+        const res = await groupService.viewMembers(groupId);
+        if (res.success && res.data?.data) {
+          let data = res.data.data;
+          // ✅ Loại bỏ người trả (excludeId)
+          if (excludeId) {
+            data = data.filter((m) => m.user?.userId !== excludeId);
+          }
+          setMembers(data);
+        } else {
+          Alert.alert("Lỗi", "Không lấy được danh sách thành viên");
         }
-        setMembers(data);
-      } else {
-        Alert.alert("Lỗi", "Không lấy được danh sách thành viên");
+      } catch (error) {
+        console.error("❌ Lỗi khi lấy thành viên:", error);
+        Alert.alert("Lỗi", "Không thể tải danh sách thành viên");
+      } finally {
+        setLoading(false);
       }
     };
     fetchMembers();
   }, [groupId, excludeId]);
 
+  // 🔹 Toggle chọn người chia (không cho chọn người trả)
   const toggleSelect = (id) => {
+    if (id === excludeId) return; // ❌ Không cho chọn người đã trả
     if (selected.includes(id)) {
       setSelected(selected.filter((x) => x !== id));
       const updated = { ...amounts };
@@ -69,24 +78,30 @@ export default function SelectPayerScreen() {
     }
   };
 
+  // 🔹 Chọn tất cả (trừ người trả)
   const selectAll = () => {
     if (selected.length === members.length) {
       setSelected([]);
       setAmounts({});
     } else {
-      setSelected(members.map((m) => m.user?.userId));
+      const selectable = members
+        .map((m) => m.user?.userId)
+        .filter((id) => id !== excludeId);
+      setSelected(selectable);
     }
   };
 
+  // 🔹 Nhập tiền cho từng người
   const handleAmountChange = (id, value) => {
-  const numericValue = value.replace(/\D/g, "");
-  const formattedValue = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");  // Đổi , thành .
-  setAmounts({
-    ...amounts,
-    [id]: formattedValue,
-  });
-};
+    const numericValue = value.replace(/\D/g, "");
+    const formattedValue = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    setAmounts({
+      ...amounts,
+      [id]: formattedValue,
+    });
+  };
 
+  // 🔹 Render từng thành viên
   const renderItem = ({ item }) => {
     const u = item.user || {};
     const id = u.userId;
@@ -94,9 +109,13 @@ export default function SelectPayerScreen() {
 
     return (
       <TouchableOpacity
-        style={styles.row}
+        style={[
+          styles.row,
+          id === excludeId && { opacity: 0.4 }, // làm mờ người trả
+        ]}
         onPress={() => toggleSelect(id)}
         activeOpacity={0.9}
+        disabled={id === excludeId} // ❌ Không cho chọn người trả
       >
         <View style={styles.avatarBox}>
           <Image
@@ -131,82 +150,75 @@ export default function SelectPayerScreen() {
     );
   };
 
+  // 🔹 Chia đều số tiền
   const handleSplitEven = () => {
-  if (selected.length === 0) {
-    alert("Vui lòng chọn ít nhất 1 người để chia đều");
-    return;
-  }
-  const total = parseInt(amount.replace(/\./g, "")) || 0;  // Đổi , thành .
-  if (total <= 0) {
-    alert("Số tiền không hợp lệ");
-    return;
-  }
-  const perPerson = Math.floor(total / selected.length);
-  const formatted = perPerson.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");  // Đổi , thành .
-  const newAmounts = {};
-  selected.forEach((id) => {
-    newAmounts[id] = formatted;
-  });
-  setAmounts(newAmounts);
-};
+    if (selected.length === 0) {
+      alert("Vui lòng chọn ít nhất 1 người để chia đều");
+      return;
+    }
+    const total = parseInt(amount.replace(/\./g, "")) || 0;
+    if (total <= 0) {
+      alert("Số tiền không hợp lệ");
+      return;
+    }
+    const perPerson = Math.floor(total / selected.length);
+    const formatted = perPerson.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    const newAmounts = {};
+    selected.forEach((id) => {
+      newAmounts[id] = formatted;
+    });
+    setAmounts(newAmounts);
+  };
 
-  const handleDone = () => {
+  // 🔹 Khi hoàn tất chọn người chia
+  // 🔹 Khi hoàn tất chọn người chia
+const handleDone = () => {
   if (selected.length === 0) {
     Alert.alert("Lỗi", "Vui lòng chọn ít nhất 1 người chia tiền");
     return;
   }
 
-  // Tính tổng tiền đã nhập (cập nhật parse)
-  const totalEntered = Object.values(amounts).reduce(
-    (sum, val) => sum + (parseInt(val.replace(/\./g, "")) || 0),  // Đổi , thành .
-    0
-  );
+  const values = Object.values(amounts).map((v) => parseInt(v.replace(/\./g, "")) || 0);
+  const allEqual = values.every((val) => val === values[0]);
+  const type = allEqual ? "equal" : "exact";
 
-  const originalAmount = parseInt(amount.replace(/\./g, "")) || 0;  // Đổi , thành .
+  const totalEntered = values.reduce((sum, val) => sum + val, 0);
+  const originalAmount = parseInt(amount.replace(/\./g, "")) || 0;
 
-  if (totalEntered !== originalAmount) {
-    Alert.alert(
-      "Cập nhật tổng tiền?",
-      `Tổng tiền bạn nhập là ${totalEntered.toLocaleString("vi-VN")}₫, khác với tổng ban đầu (${originalAmount.toLocaleString("vi-VN")}₫). Bạn có muốn cập nhật tổng tiền không?`,
-      [
-        {
-          text: "Hủy",
-          style: "cancel",
-          onPress: () => {
-            // Không làm gì, ở lại màn hiện tại
-          },
-        },
-        {
-          text: "Cập nhật",
-          onPress: () => {
-            router.push({
-              pathname: "/chat/create-split-bill",
-              params: {
-                groupId,
-                title,
-                amount: totalEntered.toLocaleString("vi-VN"),  // Định dạng lại với locale (dấu chấm)
-                selected: JSON.stringify(selected),
-                amounts: JSON.stringify(amounts),
-                payerId,  // Pass payerId back
-              },
-            });
-          },
-        },
-      ]
-    );
-  } else {
-    router.push({
-      pathname: "/chat/create-split-bill",
-      params: {
-        groupId,
-        title,
-        amount,  // Giữ nguyên
-        selected: JSON.stringify(selected),
-        amounts: JSON.stringify(amounts),
-        payerId,  // Pass payerId back
+  const pushParams = {
+    pathname: "/chat/create-split-bill",
+    params: {
+      groupId,
+      title,
+      amount, // ✅ Giữ nguyên amount=100k ở base
+      selected: JSON.stringify(selected),
+      amounts: JSON.stringify(amounts),
+      payerId,
+      type,
+    },
+  };
+
+ if (totalEntered !== originalAmount) {
+  Alert.alert(
+    "Cập nhật tổng tiền?",
+    `Tổng tiền bạn nhập là ${totalEntered.toLocaleString("vi-VN")}₫, khác với tổng ban đầu (${originalAmount.toLocaleString("vi-VN")}₫). Bạn có muốn cập nhật tổng tiền không?`,
+    [
+      { text: "Hủy", style: "cancel" },
+      {
+        text: "Cập nhật",
+        onPress: () =>
+          router.push({
+            ...pushParams,
+            params: { ...pushParams.params, amount: totalEntered.toLocaleString("vi-VN") },
+          }),
       },
-    });
-  }
+    ]
+  );
+} else {
+  // ✅ Nếu bằng nhau, không cần hỏi, đi thẳng
+  router.push(pushParams);
+}
+
 };
 
   return (
@@ -217,11 +229,11 @@ export default function SelectPayerScreen() {
           <Ionicons name="close" size={24} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: "center" }}>
-          <Text style={styles.headerTitle}>Chọn người trả</Text>
+          <Text style={styles.headerTitle}>Chọn người chia</Text>
           {amount && (
             <Text style={{ color: "#eee", marginTop: 4, fontSize: 13 }}>
-  Tổng tiền: {Number(amount.replace(/\./g, "")).toLocaleString("vi-VN")} ₫  
-</Text>
+              Tổng tiền: {Number(amount.replace(/\./g, "")).toLocaleString("vi-VN")} ₫
+            </Text>
           )}
         </View>
       </View>
@@ -285,7 +297,6 @@ export default function SelectPayerScreen() {
               );
             }}
           />
-
           <TouchableOpacity style={styles.nextBtn} onPress={handleDone}>
             <Ionicons name="arrow-forward" size={22} color="#fff" />
           </TouchableOpacity>
