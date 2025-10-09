@@ -57,9 +57,12 @@ export default function AccountScreen() {
 
           {/* 2 nút QR + sửa thông tin */}
           <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.actionButton}>
-              <Text style={styles.actionText}>Ví của tôi</Text>
-            </TouchableOpacity>
+            <TouchableOpacity
+  style={styles.actionButton}
+  onPress={() => router.push("/account/my-wallet")}
+>
+  <Text style={styles.actionText}>Ví của tôi</Text>
+</TouchableOpacity>
             <TouchableOpacity style={styles.actionButton}>
               <Text style={styles.actionText}>Sửa thông tin</Text>
             </TouchableOpacity>

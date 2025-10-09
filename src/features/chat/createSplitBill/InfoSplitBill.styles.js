@@ -1,17 +1,20 @@
 import { StyleSheet } from "react-native";
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+export default StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
   header: {
-    backgroundColor: "#2ECC71",
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: "#2ECC71",
+    padding: 12,
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
   },
   headerBtn: {
-    padding: 6,
+    padding: 8,
   },
   avatarBox: {
     alignItems: "center",
@@ -21,54 +24,66 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    marginBottom: 8,
   },
-  groupName: { fontSize: 18, fontWeight: "bold" },
+  groupName: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginTop: 8,
+  },
   totalText: {
     textAlign: "center",
-    marginTop: 8,
-    fontSize: 14,
-    color: "#333",
+    fontSize: 16,
+    marginTop: 12,
   },
-  memberText: { textAlign: "center", fontSize: 13, color: "#444" },
   tabRow: {
     flexDirection: "row",
+    justifyContent: "space-around",
+    backgroundColor: "#f0f0f0",
+    borderRadius: 10,
+    marginHorizontal: 16,
     marginTop: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    padding: 4,
   },
   tab: {
     flex: 1,
-    textAlign: "center",
     paddingVertical: 10,
-    fontWeight: "500",
-    color: "#888",
+    borderRadius: 8,
+    alignItems: "center",
   },
   tabActive: {
-    color: "#2ECC71",
-    borderBottomWidth: 2,
-    borderBottomColor: "#2ECC71",
+    backgroundColor: "#2ECC71",
   },
-  history: { marginTop: 16, paddingHorizontal: 12 },
-  monthTitle: {
+  tabText: {
+    fontSize: 16,
+    color: "#555",
+    fontWeight: "500",
+  },
+  tabTextActive: {
+    color: "#fff",
     fontWeight: "bold",
-    fontSize: 15,
-    marginBottom: 8,
+  },
+  history: {
+    flex: 1,
+    marginTop: 10,
   },
   paymentRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
+    padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
   },
-  paymentTitle: { fontSize: 15, fontWeight: "500" },
-  paymentSub: { fontSize: 12, color: "#777" },
-  paymentReceive: {
-    color: "#2ECC71",
-    fontWeight: "600",
+  paymentTitle: {
+    fontSize: 15,
+    fontWeight: "500",
+  },
+  paymentSub: {
+    color: "#777",
     fontSize: 13,
   },
+  paymentReceive: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#2ECC71",
+  },
 });
-
-export default styles;
