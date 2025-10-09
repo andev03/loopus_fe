@@ -67,11 +67,6 @@ export const groupService = {
       console.log("✅ Thêm member thành công:", res.data);
       return { success: true, data: res.data };
     } catch (error) {
-      console.error("❌ Lỗi thêm member:", {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message,
-      }); // Cải tiến log lỗi
       return { success: false, error };
     }
   },
@@ -90,20 +85,25 @@ export const groupService = {
 },
 
 viewMembers: async (groupId) => {
-  try {
-    const res = await axios.get(`${API_URL}/view-member`, {
-      params: { groupId },
-    });
-    if (res.status === 200) {
+    try {
+      const res = await axios.get(`${API_URL}/view-member`, {
+        params: { groupId },
+      });
       console.log("✅ Gọi API view-member thành công:", res.data);
-      return { success: true, data: res.data };
+
+      // Kiểm tra phản hồi
+      if (res.data?.status === 0) {
+        return { success: true, data: res.data };
+      }
+      return { success: false, data: res.data };
+    } catch (error) {
+      console.error(
+        "❌ Lỗi gọi API view-member:",
+        error.response?.data || error.message
+      );
+      return { success: false, error };
     }
-    return { success: false, data: res.data };
-  } catch (error) {
-    console.error("❌ Lỗi gọi API view-member:", error.response?.data || error.message);
-    return { success: false, error };
-  }
-},
+  },
 
 updateGroupInfo: async (data) => {
   try {

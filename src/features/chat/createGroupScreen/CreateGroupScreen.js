@@ -52,7 +52,7 @@ function CreateGroupScreen() {
             name: res.name,
             email: res.email,
             avatar: res.avatar,
-            time: "Vừa thêm",
+            
           },
         ]);
         Alert.alert("Thông báo", "Đã thêm thành viên");

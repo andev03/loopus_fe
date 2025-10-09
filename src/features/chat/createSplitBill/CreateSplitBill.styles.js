@@ -72,6 +72,50 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   createButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  container: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalBox: {
+    width: "85%",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    maxHeight: "70%",
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  memberItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 12,
+  },
+  memberName: {
+    fontSize: 16,
+  },
+  closeBtn: {
+    backgroundColor: "#2ECC71",
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  closeText: {
+    textAlign: "center",
+    color: "#fff",
+    fontWeight: "600",
+  },
 });
 
 export default styles;

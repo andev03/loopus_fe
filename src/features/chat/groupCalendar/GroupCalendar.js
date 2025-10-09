@@ -57,7 +57,6 @@ export default function GroupCalendarScreen() {
         groupId,
         creatorId: user.userId,
         title: content,
-        description: content,
         eventDate,
         eventTime,
         repeatType:

@@ -2,7 +2,7 @@ import {View,Text,TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, P
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";  // ✅ Thêm useCallback
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import styles from "./ChatDetailScreen.styles";
 import * as ImagePicker from "expo-image-picker";
@@ -36,6 +36,15 @@ export default function ChatDetailScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [longPressedEvent, setLongPressedEvent] = useState(null);
   const [eventStatuses, setEventStatuses] = useState({});
+  
+  // ✅ STATE MỚI CHO PARTICIPANTS MODAL
+  const [showParticipantsModal, setShowParticipantsModal] = useState(false);
+  const [participants, setParticipants] = useState({
+    accepted: [],
+    declined: [],
+    pending: []
+  });
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
 
  useEffect(() => {
   const fetchChats = async () => {
@@ -49,7 +58,6 @@ export default function ChatDetailScreen() {
       }
       console.log("✅ Received groupId:", groupId, "userId:", u.userId);
       
-      // ✅ Load từ cache và normalize
       const cachedMessages = await AsyncStorage.getItem(`messages_${groupId}`);
       if (cachedMessages) {
         const parsed = JSON.parse(cachedMessages);
@@ -107,11 +115,13 @@ export default function ChatDetailScreen() {
           AsyncStorage.setItem(`messages_${groupId}`, JSON.stringify(updated));
           return updated;
         });
+        // ✅ REFETCH EVENTS SAU KHI ADD MỚI ĐỂ SYNC NGAY LẬP TỨC
+        fetchEvents();
       } catch (err) {
         console.log("❌ Parse reminder error:", err);
       }
     }
-  }, [newReminder, groupId]);
+  }, [newReminder, groupId]);  // Giữ nguyên dependency
 
   useEffect(() => {
     if (newPoll) {
@@ -123,7 +133,7 @@ export default function ChatDetailScreen() {
   poll.options = (poll.options || []).map((o, i) => {
   console.log("🧩 [NEW POLL] Option raw:", o);
   return {
-    optionId: o.optionId || o.id || o._id || o.option?.optionId || `temp-${i}`, // ✅ fallback
+    optionId: o.optionId || o.id || o._id || o.option?.optionId || `temp-${i}`,
     text: o.optionText || o.text || o.name || "Không tên",
     votes: Array.isArray(o.votes) ? o.votes : [],
   };
@@ -143,49 +153,50 @@ export default function ChatDetailScreen() {
     }
   }, [newPoll, groupId]);
 
-  useEffect(() => {
-    const fetchEvents = async () => {
-      if (!groupId) return;
-      try {
-        const res = await eventService.getGroupEvents(groupId);
-        if (res.success && res.data.length > 0) {
-          const events = res.data.map((e) => ({
-            id: e.eventId,
-            type: "reminder",
-            content: e.title,
-            date: `${e.eventDate}T${e.eventTime}`,
-            repeat: e.repeatType,
-            sender: e.creator?.fullName || "Thành viên",
-            senderId: e.creator?.userId,
-            avatarUrl: e.creator?.avatarUrl || "https://via.placeholder.com/150",
-            time: e.eventTime,
-            isCurrentUser: user?.userId === e.creator?.userId,
-          }));
-          setMessages((prev) => {
-            const merged = [...prev, ...events].reduce((acc, msg) => {
-              if (!acc.some((m) => m.id === msg.id)) acc.push(msg);
-              return acc;
-            }, []);
-            return merged;
-          });
-        }
-      } catch (err) {
-        console.log("❌ Lỗi load nhắc hẹn:", err);
+  // ✅ EXTRACT fetchEvents THÀNH HÀM RIÊNG ĐỂ GỌI TỪ NHIỀU NƠI
+  const fetchEvents = useCallback(async () => {
+    if (!groupId) return;
+    try {
+      const res = await eventService.getGroupEvents(groupId);
+      if (res.success && res.data.length > 0) {
+        const events = res.data.map((e) => ({
+          id: e.eventId,
+          type: "reminder",
+          content: e.title,
+          date: `${e.eventDate}T${e.eventTime}`,
+          repeat: e.repeatType,
+          sender: e.creator?.fullName || "Thành viên",
+          senderId: e.creator?.userId,
+          avatarUrl: e.creator?.avatarUrl || "https://via.placeholder.com/150",
+          time: e.eventTime,
+          isCurrentUser: user?.userId === e.creator?.userId,
+        }));
+        setMessages((prev) => {
+          const merged = [...prev, ...events].reduce((acc, msg) => {
+            if (!acc.some((m) => m.id === msg.id)) acc.push(msg);
+            return acc;
+          }, []);
+          return merged;
+        });
       }
-    };
+    } catch (err) {
+      console.log("❌ Lỗi load nhắc hẹn:", err);
+    }
+  }, [groupId, user?.userId]);  // Dependency cho userId để check isCurrentUser
+
+  // ✅ useEffect CHO fetchEvents, DÙNG fetchEvents LÀM DEPENDENCY
+  useEffect(() => {
     fetchEvents();
-  }, [groupId]);
+  }, [fetchEvents]);
 
 useEffect(() => {
   const fetchPolls = async () => {
     if (!groupId || !user) return;
     
     try {
-      // ✅ XÓA cache polls cũ
       const cachedMessages = await AsyncStorage.getItem(`messages_${groupId}`);
       if (cachedMessages) {
         const parsed = JSON.parse(cachedMessages);
-        // Chỉ giữ lại messages không phải poll
         const withoutPolls = parsed.filter(m => m.type !== "poll");
         await AsyncStorage.setItem(`messages_${groupId}`, JSON.stringify(withoutPolls));
         setMessages(withoutPolls);
@@ -205,7 +216,6 @@ useEffect(() => {
             options: (p.options || []).map((o, index) => {
               console.log(`   🔎 Raw option ${index}:`, o);
               
-              // ✅ Đảm bảo luôn có optionId
               const optionId = o.optionId || o.id || o._id;
               if (!optionId) {
                 console.error(`❌ Option ${index} không có optionId!`, o);
@@ -226,7 +236,6 @@ useEffect(() => {
         });
 
         setMessages((prev) => {
-          // ✅ Thay thế hoàn toàn polls cũ
           const withoutPolls = prev.filter(m => m.type !== "poll");
           const merged = [...withoutPolls, ...polls];
           AsyncStorage.setItem(`messages_${groupId}`, JSON.stringify(merged));
@@ -241,6 +250,169 @@ useEffect(() => {
   fetchPolls();
 }, [groupId, user]);
 
+  // ✅ HÀM FETCH PARTICIPANTS (giữ nguyên)
+  const fetchEventParticipants = async (eventId) => {
+    setLoadingParticipants(true);
+    try {
+      const allRes = await eventService.getEventParticipants(eventId, null);
+      const acceptedRes = await eventService.getEventParticipants(eventId, "ACCEPTED");
+      const declinedRes = await eventService.getEventParticipants(eventId, "DECLINED");
+
+      console.log("📊 All participants:", allRes);
+      console.log("✅ Accepted:", acceptedRes);
+      console.log("❌ Declined:", declinedRes);
+
+      let acceptedUsers = acceptedRes.success ? acceptedRes.data : [];
+      let declinedUsers = declinedRes.success ? declinedRes.data : [];
+      let allUsers = allRes.success ? allRes.data : [];
+
+      // ✅ DEDUPLICATE ARRAYS BY USER ID
+      const getUserId = (u) => u.userId || u.user?.userId;
+      
+      const uniqueAccepted = acceptedUsers.filter((user, index, self) => 
+        index === self.findIndex(u => getUserId(u) === getUserId(user))
+      );
+      
+      const uniqueDeclined = declinedUsers.filter((user, index, self) => 
+        index === self.findIndex(u => getUserId(u) === getUserId(user))
+      );
+      
+      const uniqueAll = allUsers.filter((user, index, self) => 
+        index === self.findIndex(u => getUserId(u) === getUserId(user))
+      );
+
+      const acceptedIds = uniqueAccepted.map(getUserId);
+      const declinedIds = uniqueDeclined.map(getUserId);
+      const pendingUsers = uniqueAll.filter(u => {
+        const userId = getUserId(u);
+        return !acceptedIds.includes(userId) && !declinedIds.includes(userId);
+      });
+
+      setParticipants({
+        accepted: uniqueAccepted,
+        declined: uniqueDeclined,
+        pending: pendingUsers
+      });
+    } catch (err) {
+      console.log("❌ Lỗi fetch participants:", err);
+      Alert.alert("Lỗi", "Không thể lấy danh sách người tham gia");
+    } finally {
+      setLoadingParticipants(false);
+    }
+  };
+
+  // ✅ COMPONENT PARTICIPANTS LIST (giữ nguyên)
+  const ParticipantsList = () => {
+    if (loadingParticipants) {
+      return <Text style={styles.eventModalText}>Đang tải...</Text>;
+    }
+
+    return (
+      <View style={{ marginVertical: 15 }}>
+        {/* Đã chấp nhận */}
+        <View style={{ marginBottom: 15 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+            <Ionicons name="checkmark-circle" size={20} color="#2ECC71" />
+            <Text style={[styles.eventModalText, { fontWeight: "bold", marginLeft: 5 }]}>
+              Tham gia ({participants.accepted.length})
+            </Text>
+          </View>
+          {participants.accepted.length === 0 ? (
+            <Text style={[styles.eventModalText, { color: "#999", fontSize: 14 }]}>
+              Chưa có ai chấp nhận
+            </Text>
+          ) : (
+            participants.accepted.map((user, idx) => {
+              const userId = user.userId || user.user?.userId;
+              return (
+                <View key={userId || idx} style={styles.participantRow}>
+                  <Image
+                    source={
+                      user.avatarUrl || user.user?.avatarUrl
+                        ? { uri: user.avatarUrl || user.user?.avatarUrl }
+                        : require("../../../assets/images/default-avatar.jpg")
+                    }
+                    style={styles.participantAvatar}
+                  />
+                  <Text style={styles.participantName}>
+                    {user.fullName || user.user?.fullName || "Không rõ tên"}
+                  </Text>
+                </View>
+              );
+            })
+          )}
+        </View>
+
+        {/* Đã từ chối */}
+        <View style={{ marginBottom: 15 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+            <Ionicons name="close-circle" size={20} color="#E74C3C" />
+            <Text style={[styles.eventModalText, { fontWeight: "bold", marginLeft: 5 }]}>
+              Từ chối ({participants.declined.length})
+            </Text>
+          </View>
+          {participants.declined.length === 0 ? (
+            <Text style={[styles.eventModalText, { color: "#999", fontSize: 14 }]}>
+              Chưa có ai từ chối
+            </Text>
+          ) : (
+            participants.declined.map((user, idx) => {
+              const userId = user.userId || user.user?.userId;
+              return (
+                <View key={userId || idx} style={styles.participantRow}>
+                  <Image
+                    source={
+                      user.avatarUrl || user.user?.avatarUrl
+                        ? { uri: user.avatarUrl || user.user?.avatarUrl }
+                        : require("../../../assets/images/default-avatar.jpg")
+                    }
+                    style={styles.participantAvatar}
+                  />
+                  <Text style={styles.participantName}>
+                    {user.fullName || user.user?.fullName || "Không rõ tên"}
+                  </Text>
+                </View>
+              );
+            })
+          )}
+        </View>
+
+        {/* Chưa phản hồi */}
+        <View>
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+            <Ionicons name="help-circle" size={20} color="#95A5A6" />
+            <Text style={[styles.eventModalText, { fontWeight: "bold", marginLeft: 5 }]}>
+              Chưa phản hồi ({participants.pending.length})
+            </Text>
+          </View>
+          {participants.pending.length === 0 ? (
+            <Text style={[styles.eventModalText, { color: "#999", fontSize: 14 }]}>
+              Tất cả đã phản hồi
+            </Text>
+          ) : (
+            participants.pending.map((user, idx) => {
+              const userId = user.userId || user.user?.userId;
+              return (
+                <View key={userId || idx} style={styles.participantRow}>
+                  <Image
+                    source={
+                      user.avatarUrl || user.user?.avatarUrl
+                        ? { uri: user.avatarUrl || user.user?.avatarUrl }
+                        : require("../../../assets/images/default-avatar.jpg")
+                    }
+                    style={styles.participantAvatar}
+                  />
+                  <Text style={styles.participantName}>
+                    {user.fullName || user.user?.fullName || "Không rõ tên"}
+                  </Text>
+                </View>
+              );
+            })
+          )}
+        </View>
+      </View>
+    );
+  };
 
   const handleSearch = async (keyword) => {
     if (!keyword.trim()) {
@@ -318,6 +490,8 @@ useEffect(() => {
                 delete newStatuses[eventId];
                 return newStatuses;
               });
+              // ✅ REFETCH SAU KHI XÓA ĐỂ SYNC
+              fetchEvents();
               Alert.alert("Thành công", "Đã xóa nhắc hẹn");
               setLongPressedEvent(null);
             } else {
@@ -340,7 +514,7 @@ useEffect(() => {
       style: "destructive",
       onPress: async () => {
         try {
-          const res = await pollService.deletePoll(pollId); // ✅ gọi API BE
+          const res = await pollService.deletePoll(pollId);
           if (res.success) {
             setMessages((prev) => prev.filter((m) => String(m.id) !== String(pollId)));
             await AsyncStorage.setItem(
@@ -372,7 +546,6 @@ useEffect(() => {
               setSelectedEvent({
                 eventId: localEvent.id,
                 title: localEvent.content,
-                description: localEvent.description || "",
                 eventDate: localEvent.date.split("T")[0],
                 eventTime: localEvent.date.split("T")[1],
                 repeatType: localEvent.repeat,
@@ -518,7 +691,7 @@ useEffect(() => {
   const handleConfirmEvent = async (eventId, confirmStatus) => {
     if (!user) return;
     if (eventStatuses[eventId] === confirmStatus) {
-      return; // Không làm gì nếu đã chọn status này
+      return;
     }
     try {
       const statusMap = { ACCEPTED: "Tham gia", DECLINED: "Từ chối" };
@@ -598,9 +771,9 @@ useEffect(() => {
                   <Ionicons name="cash" size={20} color="#2ECC71" style={styles.menuIcon} />
                   <Text style={styles.menuText}>Chia tiền</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.menuRow} onPress={() => router.push({ pathname: "/chat/create-reminder", params: { groupId } })}>
+                <TouchableOpacity style={styles.menuRow} onPress={() => router.push({ pathname: "/chat/info-split-bill", params: { groupId } })}>
                   <Ionicons name="alarm" size={20} color="#2ECC71" style={styles.menuIcon} />
-                  <Text style={styles.menuText}>Nhắc nợ</Text>
+                  <Text style={styles.menuText}>Thanh toán</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -611,7 +784,6 @@ useEffect(() => {
     <View style={styles.modalContent}>
       <Text style={styles.modalTitle}>{selectedPoll?.title}</Text>
       
-      {/* ✅ Debug log */}
       {console.log("🔍 [MODAL RENDER] selectedPoll:", JSON.stringify(selectedPoll, null, 2))}
       
       {selectedPoll?.options.map((opt, idx) => {
@@ -622,7 +794,6 @@ useEffect(() => {
             key={idx}
             style={styles.modalOption}
             onPress={async () => {
-              // ✅ Log trước khi gửi
               console.log("📤 [VOTE CLICK] opt:", JSON.stringify(opt, null, 2));
               console.log("📤 [VOTE DATA]:", {
                 pollId: selectedPoll.id,
@@ -717,7 +888,24 @@ useEffect(() => {
             </View>
           </View>
         </Modal>
-        <Modal visible={eventModalVisible} animationType="slide" transparent={true} onRequestClose={() => setEventModalVisible(false)}>
+        
+        {/* ✅ MODAL PARTICIPANTS */}
+        <Modal visible={showParticipantsModal} animationType="slide" transparent={true} onRequestClose={() => setShowParticipantsModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Người tham gia</Text>
+              <ParticipantsList />
+              <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setShowParticipantsModal(false)}>
+                <Text style={styles.modalCloseText}>Đóng</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+        
+        {/* ✅ MODAL SỰ KIỆN */}
+        <Modal visible={eventModalVisible} animationType="slide" transparent={true} onRequestClose={() => {
+          setEventModalVisible(false);
+        }}>
           <View style={styles.eventModalOverlay}>
             <View style={styles.eventModalContent}>
               {selectedEvent ? (
@@ -726,8 +914,6 @@ useEffect(() => {
                     <Text style={styles.eventModalTitle}>Chỉnh sửa sự kiện</Text>
                     <Text style={styles.eventModalLabel}>Tiêu đề</Text>
                     <TextInput style={styles.eventModalInput} value={editEvent.title} onChangeText={(t) => setEditEvent({ ...editEvent, title: t })} placeholder="Nhập tiêu đề sự kiện" />
-                    <Text style={styles.eventModalLabel}>Mô tả</Text>
-                    <TextInput style={styles.eventModalInput} value={editEvent.description} onChangeText={(t) => setEditEvent({ ...editEvent, description: t })} placeholder="Nhập mô tả (không bắt buộc)" />
                     <Text style={styles.eventModalLabel}>Ngày</Text>
                     <TouchableOpacity style={styles.eventModalInput} onPress={() => setShowDatePicker(true)}>
                       <Text>{editEvent.eventDate || "Chọn ngày"}</Text>
@@ -775,6 +961,8 @@ useEffect(() => {
                             AsyncStorage.setItem(`messages_${groupId}`, JSON.stringify(updatedMessages));
                             return updatedMessages;
                           });
+                          // ✅ REFETCH SAU KHI UPDATE
+                          fetchEvents();
                           setEventModalVisible(false);
                           setEditMode(false);
                           Alert.alert("Thành công", "Cập nhật sự kiện thành công!");
@@ -792,11 +980,23 @@ useEffect(() => {
                 ) : (
                   <>
                     <Text style={styles.eventModalTitle}>{selectedEvent.title}</Text>
-                    <Text style={styles.eventModalText}>Mô tả: {selectedEvent.description || "Không có"}</Text>
                     <Text style={styles.eventModalText}>Ngày: {selectedEvent.eventDate}</Text>
                     <Text style={styles.eventModalText}>Giờ: {selectedEvent.eventTime}</Text>
                     <Text style={styles.eventModalText}>Người tạo: {selectedEvent.creator?.fullName}</Text>
                     <Text style={styles.eventModalText}>Lặp lại: {repeatTypeMap[selectedEvent?.repeatType] || "Không"}</Text>
+
+                    {/* ✅ NÚT XEM NGƯỜI THAM GIA - MỞ MODAL */}
+                    <TouchableOpacity
+                      style={styles.viewParticipantsBtn}
+                      onPress={() => {
+                        fetchEventParticipants(selectedEvent.eventId);
+                        setShowParticipantsModal(true);
+                      }}
+                    >
+                      <Ionicons name="people" size={20} color="#2ECC71" style={{ marginRight: 5 }} />
+                      <Text style={styles.viewParticipantsText}>Xem người tham gia</Text>
+                    </TouchableOpacity>
+
                     {user && (
                       <View style={styles.confirmationSection}>
                         {currentEventStatus && (
@@ -850,7 +1050,6 @@ useEffect(() => {
                         setEditEvent({
                           eventId: selectedEvent.eventId,
                           title: selectedEvent.title,
-                          description: selectedEvent.description,
                           eventDate: selectedEvent.eventDate,
                           eventTime: selectedEvent.eventTime,
                           repeatType: selectedEvent.repeatType,
@@ -859,7 +1058,9 @@ useEffect(() => {
                       }}>
                         <Text style={styles.eventModalActionText}>Chỉnh sửa</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.eventModalActionBtn} onPress={() => setEventModalVisible(false)}>
+                      <TouchableOpacity style={styles.eventModalActionBtn} onPress={() => {
+                        setEventModalVisible(false);
+                      }}>
                         <Text style={styles.eventModalActionText}>Đóng</Text>
                       </TouchableOpacity>
                     </View>

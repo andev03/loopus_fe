@@ -11,7 +11,7 @@ export default function HomeScreen() {
   const [chatVisible, setChatVisible] = useState(false); 
   
   return (
-    <View style={{ flex: 1 }}> {/* Wrap để FAB absolute */}
+    <View style={{ flex: 1 }}> 
       <ScrollView style={styles.container}>
         {/* Header */}
         <SafeAreaView edges={["top"]} style={{ backgroundColor: "#b4f1d3" }}>

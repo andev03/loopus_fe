@@ -75,27 +75,35 @@ const ChatModal = ({ visible, onClose }) => {
   };
 
   const renderMessage = ({ item }) => {
-    const isUser = item.role === 'user';
-    const safeContent = (item.content || '').toString();
-    return (
+  console.log('🔍 Rendering item:', JSON.stringify(item, null, 2)); // Log toàn bộ item để xem role/content có lạ không
+  if (!item || !item.content) {
+    console.log('🚫 Skipping invalid item:', item); // Log khi skip để track
+    return null;
+  }
+
+  const isUser = item.role === 'user';
+  const safeContent = String(item.content); // Dùng String() an toàn hơn toString() nếu content null/undefined
+  console.log('📝 Safe content length:', safeContent.length, 'Preview:', safeContent.substring(0, 50)); // Log content để kiểm tra
+
+  return (
+    <View style={[
+      styles.messageWrapper,
+      { alignItems: isUser ? 'flex-end' : 'flex-start' }
+    ]}>
       <View style={[
-        styles.messageWrapper,
-        { alignItems: isUser ? 'flex-end' : 'flex-start' }
+        styles.message, 
+        isUser ? styles.userMessage : styles.botMessage
       ]}>
-        <View style={[
-          styles.message, 
-          isUser ? styles.userMessage : styles.botMessage
+        <Text style={[
+          styles.messageText,
+          { color: isUser ? '#FFFFFF' : '#1F2937' }
         ]}>
-          <Text style={[
-            styles.messageText,
-            { color: isUser ? '#FFFFFF' : '#1F2937' }
-          ]} numberOfLines={10}>
-            {safeContent}
-          </Text>
-        </View>
+          {safeContent}
+        </Text>
       </View>
-    );
-  };
+    </View>
+  );
+};
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>

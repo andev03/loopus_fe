@@ -143,4 +143,33 @@ deleteEvent: async (eventId) => {
     };
   }
 },
+getEventParticipants: async (eventId, status = null) => {
+  try {
+    const res = await axios.get(`${API_URL}/event/${eventId}`, {
+      params: { status }, // status có thể là accepted, declined, hoặc null
+    });
+    console.log("📌 Get Event Participants API response:", res.data);
+
+    const success = res.data?.status === 0 || res.data?.status === 200;
+
+    return {
+      status: res.data?.status,
+      data: res.data?.data || [],
+      success,
+      message: res.data?.message || "Lấy danh sách người tham gia thành công",
+    };
+  } catch (error) {
+    console.log("❌ Get Event Participants error:", error.response?.data || error.message);
+
+    let message = error.response?.data?.message || "Lấy danh sách người tham gia thất bại";
+
+    return {
+      status: error.response?.status || 500,
+      message,
+      success: false,
+      data: []
+    };
+  }
+},
+
 };
