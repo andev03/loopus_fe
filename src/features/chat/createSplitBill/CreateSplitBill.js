@@ -105,10 +105,11 @@ export default function CreateSplitBillScreen() {
 
   // ✅ Gọi API tạo chia tiền
   const handleCreateSplitBill = async () => {
-    if (!title.trim() || parseFloat(amount.replace(/\./g, "")) <= 0) {
-      Alert.alert("Lỗi", "Vui lòng nhập tên khoản phí và số tiền hợp lệ");
-      return;
-    }
+    const numericAmount = parseFloat(amount.replace(/\./g, "")) || 0;
+if (!title.trim() || numericAmount <= 0) {
+  Alert.alert("Lỗi", "Số tiền phải lớn hơn 0");
+  return;
+}
     if (!groupId) {
       Alert.alert("Lỗi", "Không tìm thấy nhóm chat");
       return;
@@ -132,7 +133,10 @@ export default function CreateSplitBillScreen() {
               : parseInt((parsedAmounts[id] || "0").replace(/\./g, "")),
         }));
 
+        const me = await getUser();
+
         const expenseData = {
+          userId: me.userId,
           groupId,
           description: title.trim(),
           amount: parseFloat(amount.replace(/\./g, "")),

@@ -29,6 +29,31 @@ export const expenseService = {
     }
   },
 
+  getExpenseDetail: async (expenseId) => {
+    try {
+      console.log("📥 Fetching expense detail:", expenseId);
+
+      const response = await fetch(`${API_URL}?expenseId=${expenseId}`, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+        },
+      });
+
+      const data = await response.json();
+      console.log("✅ Get expense detail response:", data);
+
+      if (!response.ok) {
+        throw new Error(data.message || "Lấy chi tiết chia tiền thất bại");
+      }
+
+      return data;
+    } catch (error) {
+      console.error("❌ Lỗi khi lấy chi tiết chia tiền:", error);
+      throw error;
+    }
+  },
+
   createExpense: async (expenseData) => {
     try {
       console.log("📦 Sending expense payload:", expenseData);
