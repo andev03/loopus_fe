@@ -90,10 +90,13 @@ export default function NotificationsScreen() {
         let displayTitle = item.title || "";
         let displayMessage = item.message || "";
 
+        // ✅ Fix: Parse float trước, rồi floor để loại .0, format en-US cho dấu phẩy
+        const parsedAmount = parseFloat(item.amount) || 0;
+        const cleanAmount = Math.floor(parsedAmount);
+        const amountText = cleanAmount > 0 ? `${cleanAmount.toLocaleString('en-US')} ₫` : "";
+
         // ✅ Tùy chỉnh nội dung theo type
         if (item.type === "PAYMENT_REMINDER") {
-          const amountText = item.amount ? `${item.amount.toLocaleString()}₫` : "";
-
           if (isCurrentUserSender) {
             displayTitle = `Bạn đã nhắc ${recipientName} trả tiền`;
             displayMessage = `Bạn đã nhắc ${recipientName} trả ${amountText} trong nhóm "${groupName}"`;
@@ -104,6 +107,16 @@ export default function NotificationsScreen() {
             displayTitle = `${senderName} đã nhắc ${recipientName} trả tiền`;
             displayMessage = `${senderName} đã nhắc ${recipientName} trả ${amountText} trong nhóm "${groupName}"`;
           }
+        } else if (item.type === "PAYMENT_RECEIVED") {
+          // ✅ Override cho PAYMENT_RECEIVED: "Bạn đã nhận {amount} từ {sender}"
+          const senderFromMessage = item.message?.match(/từ (.+?)( \d|$)/)?.[1] || senderName || "ai đó";
+          displayTitle = `Bạn đã nhận ${amountText}`;
+          displayMessage = `Bạn nhận được ${amountText} từ ${senderFromMessage}`;
+        } else if (item.type === "TRANSFER") {
+          // ✅ Override cho TRANSFER: "Bạn đã trả {amount} cho {recipient}"
+          const recipientFromMessage = item.message?.match(/cho (.+?)( \d|$)/)?.[1] || recipientName || "ai đó";
+          displayTitle = `Bạn đã trả ${amountText}`;
+          displayMessage = `Bạn đã chuyển ${amountText} cho ${recipientFromMessage}`;
         }
 
         return {
@@ -183,20 +196,7 @@ export default function NotificationsScreen() {
 
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <TouchableOpacity onPress={handleMarkAllAsRead} style={{ marginRight: 15 }}>
-            <Animated.View
-              style={{
-                transform: [
-                  {
-                    rotate: shakeAnim.interpolate({
-                      inputRange: [-1, 1],
-                      outputRange: ["-10deg", "10deg"],
-                    }),
-                  },
-                ],
-              }}
-            >
-              <Ionicons name="notifications-outline" size={24} color="#fff" />
-            </Animated.View>
+            <Ionicons name="checkmark-circle-outline" size={24} color="#fff" />
           </TouchableOpacity>
 
           <TouchableOpacity

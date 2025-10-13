@@ -106,10 +106,10 @@ export default function CreateSplitBillScreen() {
   // ✅ Gọi API tạo chia tiền
   const handleCreateSplitBill = async () => {
     const numericAmount = parseFloat(amount.replace(/\./g, "")) || 0;
-if (!title.trim() || numericAmount <= 0) {
-  Alert.alert("Lỗi", "Số tiền phải lớn hơn 0");
-  return;
-}
+    if (!title.trim() || numericAmount <= 0) {
+      Alert.alert("Lỗi", "Số tiền phải lớn hơn 0");
+      return;
+    }
     if (!groupId) {
       Alert.alert("Lỗi", "Không tìm thấy nhóm chat");
       return;
@@ -119,19 +119,18 @@ if (!title.trim() || numericAmount <= 0) {
       if (isLocked) {
         setLoading(true);
 
-        // ✅ Parse lại dữ liệu từ màn select-payer (nếu có)
+     
         const parsedAmounts = paramAmounts ? JSON.parse(paramAmounts) : {};
-        const type = paramType || "equal"; // default là chia đều
+        const type = paramType || "equal"; 
 
-        // ✅ Nếu chia đều -> mỗi người = 0 (backend tự xử lý)
-        // ✅ Nếu chia theo số tiền cụ thể -> dùng parsedAmounts
         const expenseParticipant = selectedIds.map((id) => ({
           userId: id,
           shareAmount:
             type === "equal"
               ? 0
               : parseInt((parsedAmounts[id] || "0").replace(/\./g, "")),
-        }));
+          paid: false,  
+        })).filter(participant => participant.userId !== payer.id);
 
         const me = await getUser();
 
@@ -184,8 +183,6 @@ if (!title.trim() || numericAmount <= 0) {
       setLoading(false);
     }
   };
-
-
 
   // ✅ Chọn người trả
   const handleSelectPayer = (user) => {

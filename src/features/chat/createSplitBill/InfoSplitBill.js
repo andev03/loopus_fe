@@ -182,6 +182,7 @@ export default function InfoSplitBillScreen() {
 
   const handleDeleteExpense = async (expenseId) => {
     try {
+      console.log("🗑️ XÓA EXPENSE ID:", expenseId);
       Alert.alert("Xác nhận xóa", "Bạn có chắc muốn xóa khoản chi tiêu này không?", [
         { text: "Hủy", style: "cancel" },
         {
@@ -500,35 +501,43 @@ export default function InfoSplitBillScreen() {
               </Text>
             ) : (
               <>
-                {groupedDebtors.map((d) => (
-                  <View
-                    key={d.debtorId}
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      paddingVertical: 12,
-                      borderBottomWidth: 1,
-                      borderColor: "#eee",
-                    }}
-                  >
-                    <Text style={{ fontSize: 16 }}>{d.fullName}</Text>
-                    <View style={{ alignItems: "flex-end" }}>
-                      <Text style={{ fontSize: 13, color: "#2ECC71" }}>
-                        Phải trả bạn
-                      </Text>
-                      <Text
-                        style={{
-                          fontWeight: "bold",
-                          color: "#2ECC71",
-                          fontSize: 16,
-                        }}
-                      >
-                        {d.amount.toLocaleString()} VND
-                      </Text>
-                    </View>
-                  </View>
-                ))}
+               {groupedDebtors.map((d) => (
+  <TouchableOpacity
+    key={d.debtorId}
+    onPress={() =>
+      router.push({
+        pathname: "/chat/member-debt-detail",
+        params: {
+          payerId: d.debtorId, // 👈 truyền payerId = debtorId
+          fullName: d.fullName, // (tùy, để hiển thị tên)
+          groupId: groupId,     // (tùy, nếu bạn cần trong API)
+        },
+      })
+    }
+    style={{
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderColor: "#eee",
+    }}
+  >
+    <Text style={{ fontSize: 16 }}>{d.fullName}</Text>
+    <View style={{ alignItems: "flex-end" }}>
+      <Text style={{ fontSize: 13, color: "#2ECC71" }}>Phải trả bạn</Text>
+      <Text
+        style={{
+          fontWeight: "bold",
+          color: "#2ECC71",
+          fontSize: 16,
+        }}
+      >
+        {d.amount.toLocaleString()} VND
+      </Text>
+    </View>
+  </TouchableOpacity>
+))}
 
                 {/* ✅ Nút Nhắc tất cả */}
                 <TouchableOpacity
