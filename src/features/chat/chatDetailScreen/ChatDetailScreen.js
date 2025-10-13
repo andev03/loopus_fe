@@ -2,7 +2,7 @@ import {View,Text,TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, P
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useEffect, useCallback } from "react";  // ✅ Thêm useCallback
+import { useState, useEffect, useCallback, useRef } from "react";  // ✅ Thêm useRef
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import styles from "./ChatDetailScreen.styles";
 import * as ImagePicker from "expo-image-picker";
@@ -36,6 +36,7 @@ export default function ChatDetailScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [longPressedEvent, setLongPressedEvent] = useState(null);
   const [eventStatuses, setEventStatuses] = useState({});
+  const flatListRef = useRef(null);  // ✅ Ref cho FlatList
   
   // ✅ STATE MỚI CHO PARTICIPANTS MODAL
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
@@ -249,6 +250,15 @@ useEffect(() => {
   
   fetchPolls();
 }, [groupId, user]);
+
+  // ✅ useEffect để scroll xuống dưới cùng khi có tin nhắn mới (chỉ khi không search và không loading)
+  useEffect(() => {
+    if (!loading && !isSearchMode && messages.length > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages.length, loading, isSearchMode]);
 
   // ✅ HÀM FETCH PARTICIPANTS (giữ nguyên)
   const fetchEventParticipants = async (eventId) => {
@@ -733,7 +743,14 @@ useEffect(() => {
         )}
       </View>
       <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}>
-        <FlatList data={isSearchMode ? searchResults : messages} keyExtractor={(item, index) => item.id?.toString() || index.toString()} renderItem={renderMessage} contentContainerStyle={styles.messagesContainer} ListEmptyComponent={!loading && <Text style={{ color: "#999", textAlign: "center", marginTop: 20 }}>{isSearchMode ? "Không tìm thấy tin nhắn" : "Chưa có tin nhắn nào"}</Text>} />
+        <FlatList 
+          ref={flatListRef}  // ✅ Thêm ref
+          data={isSearchMode ? searchResults : messages} 
+          keyExtractor={(item, index) => item.id?.toString() || index.toString()} 
+          renderItem={renderMessage} 
+          contentContainerStyle={styles.messagesContainer} 
+          ListEmptyComponent={!loading && <Text style={{ color: "#999", textAlign: "center", marginTop: 20 }}>{isSearchMode ? "Không tìm thấy tin nhắn" : "Chưa có tin nhắn nào"}</Text>} 
+        />
         {!isSearchMode && (
           <SafeAreaView edges={["bottom"]} style={{ backgroundColor: "#fff" }}>
             <View style={styles.inputContainer}>
@@ -754,10 +771,6 @@ useEffect(() => {
                 <TouchableOpacity style={styles.menuRow} onPress={pickImage}>
                   <Ionicons name="image" size={20} color="#2ECC71" style={styles.menuIcon} />
                   <Text style={styles.menuText}>Ảnh</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.menuRow}>
-                  <Ionicons name="mic" size={20} color="#2ECC71" style={styles.menuIcon} />
-                  <Text style={styles.menuText}>Ghi âm</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.menuRow} onPress={() => router.push({ pathname: "/chat/group-calendar", params: { id: groupId } })}>
                   <Ionicons name="calendar" size={20} color="#2ECC71" style={styles.menuIcon} />

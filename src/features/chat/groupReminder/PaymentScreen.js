@@ -1,3 +1,5 @@
+// src/features/chat/groupReminder/PaymentScreen.js
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -5,50 +7,110 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, router } from "expo-router";
-import { useState } from "react";
+
+import { transferMoney } from "../../../services/walletService";
+import { getUser } from "../../../services/storageService";
+import styles from "./PaymentScreen.styles";
 
 export default function PaymentScreen() {
-  const { id } = useLocalSearchParams();
-  const [amount, setAmount] = useState("");
+  const { payerId, groupId, payerName, payerAvatar  } = useLocalSearchParams();
 
-  const member = {
-    id: "1",
-    name: "Đặng Lê Anh",
-    avatar: "https://randomuser.me/api/portraits/men/1.jpg",
+  const [amount, setAmount] = useState("");
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const u = await getUser();
+        setUser(u);
+      } catch (err) {
+        console.error("Error loading user:", err);
+      }
+    })();
+  }, []);
+
+  const handleTransfer = async () => {
+    const num = Number(amount.toString().replace(/[, ]+/g, ""));
+    if (!amount || isNaN(num) || num <= 0) {
+      Alert.alert("Lỗi", "Vui lòng nhập số tiền hợp lệ.");
+      return;
+    }
+    if (!payerId) {
+      Alert.alert("Lỗi", "Không có thông tin người nhận.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await transferMoney(payerId, num, groupId || "");
+
+      if (res.success) {
+        Alert.alert("Thành công", res.message || "Chuyển tiền thành công", [
+          {
+            text: "OK",
+            onPress: async () => {
+              // Optional: Refresh user/wallet sau transfer
+              try {
+                const u = await getUser();
+                setUser(u);
+              } catch (err) {
+                console.error("Error refreshing user:", err);
+              }
+              router.replace({
+                pathname: "/chat/member-debt-detail",
+                params: { payerId, groupId },
+              });
+            },
+          },
+        ]);
+      } else {
+        Alert.alert("Thất bại", res.message || "Không thể chuyển tiền");
+      }
+    } catch (err) {
+      console.error("transfer error:", err);
+      Alert.alert("Lỗi", "Có lỗi xảy ra, vui lòng thử lại.");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.center}>
+        <ActivityIndicator size="large" color="#2ECC71" />
+        <Text style={{ marginTop: 8 }}>Đang tải thông tin...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.headerBtn}
-        >
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
+
         <Text style={styles.headerTitle}>Thanh toán</Text>
-        <TouchableOpacity onPress={() => {}}>
-          <TouchableOpacity
-            onPress={() => {
-              router.replace({
-                pathname: "/chat/member-debt-detail",
-                params: { id: member.id, paid: amount },
-              });
-            }}
-          >
-            <Text style={styles.saveBtn}>Lưu</Text>
-          </TouchableOpacity>
-        </TouchableOpacity>
+
+        <View style={{ width: 40 }} />
       </View>
 
-      {/* Thông tin chuyển tiền */}
+      {/* Transfer info */}
       <View style={styles.transferBox}>
-        <Image source={{ uri: member.avatar }} style={styles.avatar} />
+        <Image
+  source={{
+    uri: payerAvatar || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+  }}
+  style={styles.avatar}
+/>
 
         <View style={styles.iconRow}>
           <Ionicons name="cash-outline" size={28} color="#2ECC71" />
@@ -56,75 +118,59 @@ export default function PaymentScreen() {
             name="arrow-forward-outline"
             size={24}
             color="#2ECC71"
-            style={{ marginLeft: 4 }}
+            style={{ marginLeft: 6 }}
           />
         </View>
 
         <Image
-          source={{ uri: "https://randomuser.me/api/portraits/men/2.jpg" }}
+          source={{
+            uri: user?.avatarUrl || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+          }}
           style={styles.avatar}
         />
       </View>
 
       <View style={styles.nameRow}>
-        <Text style={styles.name}>{member.name}</Text>
         <Text style={styles.name}>Bạn</Text>
-      </View>
+  <Text style={styles.name}>
+    {payerName || "Người nợ"}
+  </Text>
+</View>
 
-      {/* Input số tiền */}
+      {/* Amount input */}
       <View style={styles.amountBox}>
         <Text style={styles.currency}>VND</Text>
         <TextInput
-          value={amount}
-          onChangeText={setAmount}
-          placeholder="0.000"
-          keyboardType="numeric"
-          style={styles.amountInput}
-        />
+  value={amount}
+  onChangeText={(text) => {
+    // ✅ Loại bỏ ký tự không phải số
+    const numeric = text.replace(/\D/g, "");
+
+    // ✅ Format thành dạng 10.000
+    const formatted = numeric.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+    setAmount(formatted);
+  }}
+  placeholder="Nhập số tiền..."
+  keyboardType="numeric"
+  style={styles.amountInput}
+/>
+
       </View>
+
+      {/* Pay button */}
+      <TouchableOpacity
+        style={[styles.payBtn, loading && { opacity: 0.7 }]}
+        onPress={handleTransfer}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.payText}>Chuyển tiền</Text>
+        )}
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  header: {
-    backgroundColor: "#2ECC71",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  headerBtn: { padding: 4 },
-  headerTitle: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  saveBtn: { color: "#fff", fontWeight: "600" },
-  transferBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginVertical: 20,
-  },
-  avatar: { width: 60, height: 60, borderRadius: 30 },
-  nameRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingHorizontal: 32,
-    marginBottom: 20,
-  },
-  name: { fontSize: 14, fontWeight: "500" },
-  amountBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
-  },
-  currency: { fontSize: 16, color: "#555", marginRight: 8 },
-  amountInput: { flex: 1, fontSize: 24, fontWeight: "600", color: "#2ECC71" },
-  iconRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: 16,
-  },
-});

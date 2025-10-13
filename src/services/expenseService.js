@@ -2,6 +2,7 @@ const API_URL = "https://loopus.nguyenhoangan.site/api/expense";
 const API_LIST_URL = "https://loopus.nguyenhoangan.site/api/expenses";
 const API_DEBT_INDIVIDUAL_URL = `${API_URL}/debt-reminder-individual`;
 const API_DEBT_GROUP_URL = `${API_URL}/debt-reminder-group`;
+const API_DEBT_ALL_URL = `${API_URL}/debt-reminder-all`;
 
 export const expenseService = {
   getExpensesByGroup: async (groupId) => {
@@ -25,6 +26,31 @@ export const expenseService = {
       return data;
     } catch (error) {
       console.error("❌ Lỗi khi lấy danh sách chia tiền:", error);
+      throw error;
+    }
+  },
+
+  getExpenseDetail: async (expenseId) => {
+    try {
+      console.log("📥 Fetching expense detail:", expenseId);
+
+      const response = await fetch(`${API_URL}?expenseId=${expenseId}`, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+        },
+      });
+
+      const data = await response.json();
+      console.log("✅ Get expense detail response:", data);
+
+      if (!response.ok) {
+        throw new Error(data.message || "Lấy chi tiết chia tiền thất bại");
+      }
+
+      return data;
+    } catch (error) {
+      console.error("❌ Lỗi khi lấy chi tiết chia tiền:", error);
       throw error;
     }
   },
@@ -54,6 +80,7 @@ export const expenseService = {
       throw error;
     }
   },
+  
   updateExpense: async (expenseData) => {
     try {
       console.log("🟡 Sending update expense payload:", expenseData);
@@ -122,23 +149,30 @@ export const expenseService = {
   }
 },
 
-createDebtReminder: async (reminderData) => {
+createDebtReminder: async ({ userId, payerId }) => {
   try {
-    console.log("📦 Sending debt reminder individual payload:", reminderData);
-    const response = await fetch(API_DEBT_INDIVIDUAL_URL, {
+    const url = `https://loopus.nguyenhoangan.site/api/expense/debt-reminder-individual?userId=${userId}&payerId=${payerId}`;
+    console.log("📡 Gửi yêu cầu nhắc nợ cá nhân:", url);
+
+    const response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(reminderData),
+      headers: { Accept: "application/json" },
     });
+
     const data = await response.json();
-    console.log("✅ Create debt reminder individual response:", data);
-    if (!response.ok) throw new Error(data.message || "Tạo nhắc nợ thất bại");
+    console.log("✅ Phản hồi nhắc nợ cá nhân:", data);
+
+    if (!response.ok || data.status !== 200) {
+      throw new Error(data.message || "Tạo nhắc nợ thất bại");
+    }
+
     return data;
   } catch (error) {
     console.error("❌ Lỗi khi tạo nhắc nợ:", error);
     throw error;
   }
 },
+
 getDebtReminderGroup: async (expenseId) => {
   try {
     console.log("📥 Fetching debt reminder group for expense:", expenseId);
@@ -176,5 +210,53 @@ createDebtReminderGroup: async (expenseId, userId) => {
   }
 },
 
-  
+getAllDebtReminders: async (userId) => {
+    try {
+      console.log("📥 Fetching all debt reminders for user:", userId);
+
+      const response = await fetch(`${API_DEBT_ALL_URL}?userId=${userId}`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      const data = await response.json();
+      console.log("✅ Get all debt reminders response:", data);
+
+      if (!response.ok) {
+        throw new Error(data.message || "Lấy danh sách nhắc nợ thất bại");
+      }
+
+      return data;
+    } catch (error) {
+      console.error("❌ Lỗi khi lấy danh sách nhắc nợ:", error);
+      throw error;
+    }
+  },
+
+  createAllDebtReminders: async (userId) => {
+    try {
+      console.log("📦 Creating all debt reminders for user:", userId);
+
+      const response = await fetch(`${API_DEBT_ALL_URL}?userId=${userId}`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      const data = await response.json();
+      console.log("✅ Create all debt reminders response:", data);
+
+      if (!response.ok) {
+        throw new Error(data.message || "Tạo nhắc nợ tất cả thất bại");
+      }
+
+      return data;
+    } catch (error) {
+      console.error("❌ Lỗi khi tạo nhắc nợ tất cả:", error);
+      throw error;
+    }
+  },  
 };

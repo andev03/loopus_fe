@@ -1,0 +1,82 @@
+import { StyleSheet } from "react-native";  
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#fff" },
+  header: {
+    backgroundColor: "#2ECC71",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  headerBtn: { padding: 4 },
+  headerTitle: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  profileBox: { alignItems: "center", marginVertical: 20 },
+  avatarLarge: { width: 80, height: 80, borderRadius: 40, marginBottom: 8 },
+  subText: { fontSize: 14, color: "#555" },
+  totalAmount: { color: "#2ECC71", fontWeight: "600" },
+  actionRow: { flexDirection: "row", marginTop: 12, gap: 12 },
+  actionBtn: {
+    backgroundColor: "#2ECC71",
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+  },
+  actionText: { color: "#fff", fontWeight: "600" },
+  history: { paddingHorizontal: 16, marginTop: 12 },
+  historyTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#555",
+    marginBottom: 8,
+  },
+  historyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  historyName: { fontSize: 15, fontWeight: "500" },
+  historyInfo: { fontSize: 12, color: "#888", marginTop: 2 },
+  historyAmount: { fontSize: 14, color: "#2ECC71", fontWeight: "600" },
+  memberName: {
+  fontSize: 18,
+  fontWeight: "600",
+  color: "#222",
+  marginTop: 8,
+},
+successOverlay: {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: "rgba(0,0,0,0.3)",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 1000,
+},
+successBox: {
+  backgroundColor: "#fff",
+  borderRadius: 16,
+  padding: 30,
+  alignItems: "center",
+  justifyContent: "center",
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.3,
+  shadowRadius: 6,
+  elevation: 10,
+},
+successText: {
+  color: "#4CD964",
+  fontSize: 16,
+  fontWeight: "600",
+  marginTop: 10,
+},
+
+});
+
+export default styles;
