@@ -44,17 +44,27 @@ export const getWalletByUserId = async () => {
  * @param {string} receiverId - id người nhận
  * @param {number} amount - số tiền
  * @param {string} groupId - id nhóm (nếu có)
+ * @param {string} expenseId - id chi phí (nếu có)
+ * @param {string} typeTransfer - loại chuyển: INDIVIDUAL_TRANSFER hoặc GROUP_EXPENSE
  */
-export const transferMoney = async (receiverId, amount, groupId = "") => {
+export const transferMoney = async (receiverId, amount, groupId = "", expenseId = "", typeTransfer = "INDIVIDUAL_TRANSFER") => {
   try {
     const senderId = await getUserId();
     if (!senderId) throw new Error("Không tìm thấy userId, vui lòng đăng nhập lại.");
 
-    const url = `${API_URL}/transfer?senderId=${senderId}&receiverId=${receiverId}&amount=${amount}&groupId=${groupId}`;
+    const url = `${API_URL}/transfer`;
+    const body = {
+      senderId,
+      receiverId,
+      amount,
+      expenseId: expenseId || "", // ✅ Đảm bảo expenseId là string rỗng nếu null
+      groupId: groupId || "",
+      typeTransfer,
+    };
 
-    console.log("🚀 Gọi API transferMoney:", url);
+    console.log("🚀 Gọi API transferMoney:", url, body);
 
-    const res = await axios.post(url, null, {
+    const res = await axios.post(url, body, {
       headers: {
         "Content-Type": "application/json",
       },
@@ -77,6 +87,7 @@ export const transferMoney = async (receiverId, amount, groupId = "") => {
     };
   }
 };
+
 
 /**
  * 📜 Lấy danh sách giao dịch của 1 ví

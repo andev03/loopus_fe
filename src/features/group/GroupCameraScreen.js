@@ -1,14 +1,23 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { View, TouchableOpacity, StyleSheet, Text, Image } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router"; // 👈 Thêm useLocalSearchParams
 import AvatarDropdown from "../../components/AvatarDropdown";
 
 export default function GroupCameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState("back");
   const cameraRef = useRef(null); // 👈 thêm ref
+
+  // 👈 Lấy params từ router
+  const params = useLocalSearchParams();
+  
+  // 👈 Log params khi nhận được (khi màn hình mount hoặc params thay đổi)
+  useEffect(() => {
+    console.log("📥 Nhận params ở /group/camera:", params);
+    // Ví dụ: Nếu cần xử lý params (như fetch data dựa trên groupId), làm ở đây
+  }, [params]);
 
   if (!permission) return <View />;
 
@@ -23,16 +32,33 @@ export default function GroupCameraScreen() {
     );
   }
 
-  // 👇 hàm chụp và chuyển sang preview
-  const takePhoto = async () => {
-    if (cameraRef.current) {
-      const photo = await cameraRef.current.takePictureAsync();
+  // 👇 hàm chụp và chuyển sang preview (có thể truyền thêm params nếu cần)
+const takePhoto = async () => {
+  if (cameraRef.current) {
+    try {
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 1, // Chất lượng cao nhất
+        base64: false, // Không cần base64, chỉ URI
+        exif: false, // Tắt EXIF để nhẹ hơn
+        skipProcessing: false, // Đảm bảo xử lý full
+      });
+      console.log("Ảnh chụp được:", photo.uri);
+
       router.push({
         pathname: "/group/preview",
-        params: { uri: photo.uri },
+        params: { 
+          uri: photo.uri,
+          groupId: params.groupId, 
+          groupName: params.groupName,
+          avatarUrl: params.avatarUrl,
+        },
       });
+    } catch (err) {
+      console.error("Lỗi chụp ảnh:", err);
+      Alert.alert("Lỗi", "Không thể chụp ảnh");
     }
-  };
+  }
+};
 
   return (
     <View style={{ flex: 1, backgroundColor: "#A8F0C4" }}>
@@ -42,8 +68,13 @@ export default function GroupCameraScreen() {
           <Ionicons name="chevron-back" size={28} color="#000" />
         </TouchableOpacity>
 
-        {/* AvatarDropdown thay vì Image */}
-        <AvatarDropdown mainAvatar="https://randomuser.me/api/portraits/men/1.jpg" />
+        {/* Ví dụ sử dụng params: Hiển thị groupName thay vì avatar cứng */}
+        <Text style={{ fontWeight: 'bold', fontSize: 16 }}>
+          {params.groupName || "Camera Nhóm"}
+        </Text>
+
+        {/* Nếu vẫn muốn AvatarDropdown, truyền avatarUrl từ params nếu có */}
+        {/* <AvatarDropdown mainAvatar={params.avatarUrl || "https://randomuser.me/api/portraits/men/1.jpg"} /> */}
       </View>
 
       {/* Camera View */}

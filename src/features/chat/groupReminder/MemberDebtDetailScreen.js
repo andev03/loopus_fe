@@ -9,7 +9,7 @@ import styles from "./MemberDebtDetailScreen.styles";
 import { getUser } from "../../../services/storageService";
 
 export default function MemberDebtDetailScreen() {
-  const { payerId, groupId } = useLocalSearchParams(); 
+  const { payerId, groupId, payerName: paramName, payerAvatar: paramAvatar } = useLocalSearchParams(); 
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState(null);
@@ -43,28 +43,46 @@ export default function MemberDebtDetailScreen() {
 
     const res = await expenseService.getDebtReminder(id, payerId);
     
-    // ✅ Log về res ở đây (trước khi định nghĩa list)
-    console.log("🔍 LOG RES: ", JSON.stringify(res, null, 2));  // Xem chi tiết API trả về
+    console.log("🔍 LOG RES: ", JSON.stringify(res, null, 2));
     console.log("📥 Debt reminder data:", res);
 
     const list = res?.data || [];
     
-    // ✅ Log về list.map ở đây (sau khi list đã được định nghĩa)
     console.log("📝 EXPENSE IDS TRONG REMINDER: ", list.map(item => item.expenseDto?.expenseId));
 
     if (list.length === 0) {
-      setMember(null);
+      setMember({
+        name: paramName || "Người dùng",
+        avatar: paramAvatar || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+        total: 0,
+        details: [],
+      });
       return;
     }
 
-    const payer = list[0];
-    const totalDebt = list.reduce((sum, item) => sum + (item.shareAmount || 0), 0);
+    // ✅ FILTER CHỈ UNPAID DEBTS (loại bỏ paid: true)
+    const unpaidList = list.filter(item => !item.paid); // ← Thêm filter này
+    console.log("📝 UNPAID DEBTS ONLY:", unpaidList.length); // Log để debug
+
+    if (unpaidList.length === 0) {
+      // Nếu tất cả đã paid, set total=0
+      setMember({
+        name: list[0].user?.fullName || paramName || "Người nợ",
+        avatar: list[0].user?.avatarUrl || paramAvatar || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+        total: 0,
+        details: [],
+      });
+      return;
+    }
+
+    const payer = unpaidList[0]; // Dùng unpaid đầu tiên cho name/avatar
+    const totalDebt = unpaidList.reduce((sum, item) => sum + (item.shareAmount || 0), 0); // Sum chỉ unpaid
 
     setMember({
-      name: payer.user?.fullName || "Người nợ",
-      avatar: payer.user?.avatarUrl || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+      name: payer.user?.fullName || paramName || "Người nợ",
+      avatar: payer.user?.avatarUrl || paramAvatar || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
       total: totalDebt,
-      details: list.map((item) => ({
+      details: unpaidList.map((item) => ({ // Map chỉ unpaid
         title: item.expenseDto?.description || `Khoản nợ #${item.expenseDto?.expenseId?.slice(-6)}`,
         amount: item.shareAmount,
         date: item.expenseDto?.createdAt 
@@ -76,7 +94,7 @@ export default function MemberDebtDetailScreen() {
               minute: '2-digit' 
             })
           : "Chưa có ngày",
-        paid: item.paid || false,
+        paid: item.paid || false, // Vẫn giữ để UI biết (dù đã filter)
       })),
     });
   } catch (error) {
@@ -126,13 +144,8 @@ export default function MemberDebtDetailScreen() {
     );
   }
 
-  if (!member) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Text style={{ textAlign: "center", marginTop: 20 }}>Không có dữ liệu</Text>
-      </SafeAreaView>
-    );
-  }
+  // ✅ Luôn show UI, ngay cả khi total = 0
+  const hasDebt = member.total > 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -154,7 +167,10 @@ export default function MemberDebtDetailScreen() {
         {/* ✅ Hiển thị tổng tiền bên dưới */}
         <Text style={styles.subText}>
           Sẽ trả bạn{" "}
-          <Text style={styles.totalAmount}>{member.total.toLocaleString()} VND</Text>
+          <Text style={[styles.totalAmount, !hasDebt && { color: "#999" }]}>
+            {member.total.toLocaleString()} VND
+          </Text>
+          { !hasDebt && <Text style={{ fontSize: 14, color: "#999", marginTop: 4 }}> (Chưa có khoản nợ)</Text> }
         </Text>
 
         <View style={styles.actionRow}>
@@ -172,8 +188,8 @@ export default function MemberDebtDetailScreen() {
           >
             <Text style={styles.actionText}>Thanh toán</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={handleCreateReminder}>
-            <Text style={styles.actionText}>Nhắc nợ</Text>
+          <TouchableOpacity style={styles.actionBtn} onPress={handleCreateReminder} disabled={!hasDebt}>
+            <Text style={[styles.actionText, !hasDebt && { color: "#ccc" }]}>Nhắc nợ</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -183,9 +199,15 @@ export default function MemberDebtDetailScreen() {
         <Text style={styles.historyTitle}>Chi tiết nợ</Text>
 
         {member.details.length === 0 ? (
-          <Text style={{ textAlign: "center", color: "#888", marginTop: 10 }}>
-            Không có giao dịch nào
-          </Text>
+          <View style={{ alignItems: "center", padding: 20 }}>
+            <Ionicons name="document-outline" size={48} color="#ccc" />
+            <Text style={{ textAlign: "center", color: "#888", marginTop: 10 }}>
+              Chưa có giao dịch nào
+            </Text>
+            <Text style={{ textAlign: "center", color: "#999", fontSize: 12, marginTop: 4 }}>
+              Bạn có thể tạo chi tiêu chung để theo dõi nợ
+            </Text>
+          </View>
         ) : (
           member.details.map((d, idx) => (
             <View key={idx} style={styles.historyRow}>

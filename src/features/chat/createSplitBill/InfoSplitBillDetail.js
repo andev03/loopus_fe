@@ -117,6 +117,14 @@ export default function InfoSplitBillDetailScreen() {
           {participants && participants.length > 0 ? (
             participants.map((p, index) => {
               const isPayer = paidBy?.userId === p.userId;
+              const isPaid = p.paid || false; // ✅ Lấy trạng thái paid từ API
+              const shareAmount = p.shareAmount || 0;
+              const subText = isPayer 
+                ? "Người trả" 
+                : isPaid 
+                  ? `Đã trả ${(shareAmount).toLocaleString()} VND`  // ✅ Nếu đã trả
+                  : `Phải trả ${(shareAmount).toLocaleString()} VND`;  // ✅ Nếu chưa trả
+
               return (
                 <View
                   key={p.userId || `participant-${index}`}
@@ -133,15 +141,23 @@ export default function InfoSplitBillDetailScreen() {
                   />
                   <View style={{ flex: 1, marginLeft: 10 }}>
                     <Text style={styles.participantName}>{p.fullName}</Text>
-                    <Text style={styles.participantSub}>
-                      {isPayer
-                        ? "Người trả"
-                        : `Phải trả ${(p.shareAmount || 0).toLocaleString()} VND`}
+                    <Text 
+                      style={[
+                        styles.participantSub,
+                        isPaid && { color: "#2ECC71" }  // ✅ Màu xanh nếu đã trả
+                      ]}
+                    >
+                      {subText}
                     </Text>
                   </View>
                   {!isPayer && (
-                    <Text style={styles.participantAmount}>
-                      {(p.shareAmount || 0).toLocaleString()} VND
+                    <Text 
+                      style={[
+                        styles.participantAmount,
+                        isPaid && { color: "#2ECC71", textDecorationLine: "line-through" }  // ✅ Gạch ngang nếu đã trả
+                      ]}
+                    >
+                      {shareAmount.toLocaleString()} VND
                     </Text>
                   )}
                 </View>

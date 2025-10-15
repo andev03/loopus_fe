@@ -46,6 +46,62 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   payText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  debtItem: {
+  flexDirection: "row",
+  alignItems: "center",
+  padding: 12,
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: "#eee",
+  marginBottom: 8,
+  backgroundColor: "#fff",
+},
+checkbox: {
+  width: 24,
+  height: 24,
+  borderRadius: 12,
+  borderWidth: 1,
+  borderColor: "#ccc",
+  alignItems: "center",
+  justifyContent: "center",
+},
+debtTitle: {
+  fontSize: 16,
+  fontWeight: "500",
+},
+debtInfo: {
+  fontSize: 12,
+  color: "#666",
+  marginTop: 2,
+},
+debtAmount: {
+  fontSize: 14,
+  fontWeight: "bold",
+  color: "#2ECC71",
+},
+totalBox: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+  padding: 12,
+  backgroundColor: "#f8f9fa",
+  borderRadius: 8,
+  marginTop: 8,
+},
+totalLabel: {
+  fontSize: 16,
+  color: "#333",
+},
+totalAmount: {
+  fontSize: 18,
+  fontWeight: "bold",
+  color: "#2ECC71",
+},
+center: {
+  flex: 1,
+  justifyContent: "center",
+  alignItems: "center",
+},
 });
 
 export default styles;

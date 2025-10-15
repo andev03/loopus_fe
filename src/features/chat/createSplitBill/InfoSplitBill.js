@@ -102,71 +102,77 @@ export default function InfoSplitBillScreen() {
     fetchExpenses();
   }, [groupId, expenseId, originalAmount]);
 
-  const getNetAmount = (exp) => {
-    if (!currentUser) return 0;
+  // src/.../InfoSplitBillScreen.js (giữ nguyên toàn bộ, chỉ update getNetAmount)
+const getNetAmount = (exp) => {
+  if (!currentUser) return 0;
 
-    const expAmount = exp.amount || 0;
-    const participants = exp.participants || [];
-    const paidByUserId = exp.paidBy?.userId;
-    const currentUserId = currentUser.userId;
-    const expType = exp.type || "equal";
+  const expAmount = exp.amount || 0;
+  const participants = exp.participants || [];
+  const paidByUserId = exp.paidBy?.userId;
+  const currentUserId = currentUser.userId;
+  const expType = exp.type || "equal";
 
-    console.log(`[NET-${exp.expenseId}] 📊 BẮT ĐẦU TÍNH TOÁN:`, {
-      expenseId: exp.expenseId,
-      description: exp.description,
-      amount: expAmount,
-      paidByUserId,
-      currentUserId,
-      participants,
-      type: expType,
-    });
+  console.log(`[NET-${exp.expenseId}] 📊 BẮT ĐẦU TÍNH TOÁN:`, {
+    expenseId: exp.expenseId,
+    description: exp.description,
+    amount: expAmount,
+    paidByUserId,
+    currentUserId,
+    participants,
+    type: expType,
+  });
 
-    const userParticipant = participants.find(
-      (p) => String(p.user?.userId || p.userId) === String(currentUserId)
-    );
+  const userParticipant = participants.find(
+    (p) => String(p.user?.userId || p.userId) === String(currentUserId)
+  );
 
-    const isParticipant = !!userParticipant;
+  const isParticipant = !!userParticipant;
 
-    console.log(`[NET-${exp.expenseId}] 👤 KIỂM TRA NGƯỜI DÙNG:`, {
-      isParticipant,
-      shareAmount: userParticipant?.shareAmount,
-      userParticipant,
-    });
+  console.log(`[NET-${exp.expenseId}] 👤 KIỂM TRA NGƯỜI DÙNG:`, {
+    isParticipant,
+    shareAmount: userParticipant?.shareAmount,
+    userParticipant,
+  });
 
-    // 🧮 Logic tính toán
-    if (paidByUserId === currentUserId) {
-      // ✅ Người trả
-      const totalShare = participants.reduce(
-        (sum, p) => sum + (p.shareAmount || 0),
-        0
-      );
-      console.log(
-        `[NET-${exp.expenseId}] 💰 Bạn là NGƯỜI TRẢ — nhận lại toàn bộ:`,
-        totalShare
-      );
-      return totalShare;
-    }
-
-    if (!isParticipant) {
-      // 🚫 Không liên quan
-      console.log(`[NET-${exp.expenseId}] 🚫 Bạn KHÔNG LIÊN QUAN — 0 VND`);
-      return 0;
-    }
-
-    // 🧾 Người tham gia (không phải người trả)
-    const userShare =
-      userParticipant?.shareAmount ??
-      (expType === "equal"
-        ? Math.floor(expAmount / Math.max(participants.length, 1))
-        : 0);
-
-    const result = -userShare;
+  // 🧮 Logic tính toán
+  if (paidByUserId === currentUserId) {
+    // ✅ Người trả: Sum CHỈ UNPAID shares (filter !p.paid)
+    const unpaidTotalShare = participants
+      .filter(p => !p.paid)  // ← THÊM FILTER NÀY
+      .reduce((sum, p) => sum + (p.shareAmount || 0), 0);
     console.log(
-      `[NET-${exp.expenseId}] 💸 Bạn là NGƯỜI THAM GIA — phải trả:`,
-      result
+      `[NET-${exp.expenseId}] 💰 Bạn là NGƯỜI TRẢ — nhận lại UNPAID:`,
+      unpaidTotalShare
     );
-    return result;
-  };
+    return unpaidTotalShare;
+  }
+
+  if (!isParticipant) {
+    // 🚫 Không liên quan
+    console.log(`[NET-${exp.expenseId}] 🚫 Bạn KHÔNG LIÊN QUAN — 0 VND`);
+    return 0;
+  }
+
+  // 🧾 Người tham gia (không phải người trả): Nếu bạn là debtor, check paid của bạn
+  const userShare =
+    userParticipant?.shareAmount ??
+    (expType === "equal"
+      ? Math.floor(expAmount / Math.max(participants.length, 1))
+      : 0);
+
+  // ✅ Nếu bạn đã paid, net=0 (không nợ nữa)
+  if (userParticipant?.paid) {
+    console.log(`[NET-${exp.expenseId}] ✅ Bạn ĐÃ TRẢ — net: 0`);
+    return 0;
+  }
+
+  const result = -userShare;
+  console.log(
+    `[NET-${exp.expenseId}] 💸 Bạn là NGƯỜI THAM GIA — phải trả:`,
+    result
+  );
+  return result;
+};
 
   const getDisplayAmount = (exp) => {
     if (exp.expenseId === expenseId && originalAmount > 0) {
@@ -180,7 +186,13 @@ export default function InfoSplitBillScreen() {
     0
   );
 
-  const handleDeleteExpense = async (expenseId) => {
+  const handleDeleteExpense = async (expenseId, creatorId) => {
+    // ✅ Check chỉ creator mới xóa được
+    if (creatorId !== currentUser?.userId) {
+      Alert.alert("Không thể xóa", "Chỉ người tạo khoản chi tiêu mới có quyền xóa.");
+      return;
+    }
+
     try {
       console.log("🗑️ XÓA EXPENSE ID:", expenseId);
       Alert.alert("Xác nhận xóa", "Bạn có chắc muốn xóa khoản chi tiêu này không?", [
@@ -217,33 +229,33 @@ export default function InfoSplitBillScreen() {
   }
 
   // 🔸 Trả về debtDetails chi tiết (cho remind per expense)
-  const getDebtors = () => {
-    if (!currentUser) return [];
+ const getDebtors = () => {
+  if (!currentUser) return [];
 
-    const debtDetails = [];  // Array chi tiết {debtorId, fullName, amount, expenseId}
+  const debtDetails = [];  // Array chi tiết {debtorId, fullName, amount, expenseId}
 
-    expenses.forEach((exp) => {
-      if (exp.paidBy?.userId === currentUser.userId) {
-        exp.participants?.forEach((p) => {
-          const userId = p.user?.userId || p.userId;
-          if (userId === currentUser.userId) return;  // Bỏ chính bạn
+  expenses.forEach((exp) => {
+    if (exp.paidBy?.userId === currentUser.userId) {
+      exp.participants?.forEach((p) => {
+        const userId = p.user?.userId || p.userId;
+        if (userId === currentUser.userId) return;  // Bỏ chính bạn
 
-          const amount = p.shareAmount || 0;
-          if (amount > 0) {
-            debtDetails.push({
-              debtorId: userId,
-              fullName: p.user?.fullName || "Người dùng",
-              amount,
-              expenseId: exp.expenseId,  // Lưu expenseId cho debt này
-            });
-          }
-        });
-      }
-    });
+        // ✅ FILTER CHỈ UNPAID SHARES (thêm !p.paid)
+        if (!p.paid && (p.shareAmount || 0) > 0) { // ← Thêm !p.paid
+          debtDetails.push({
+            debtorId: userId,
+            fullName: p.user?.fullName || "Người dùng",
+            amount: p.shareAmount,
+            expenseId: exp.expenseId,
+          });
+        }
+      });
+    }
+  });
 
-    console.log("🔍 DEBUG DEBTORS:", debtDetails);  // Debug log
-    return debtDetails;
-  };
+  console.log("🔍 DEBUG DEBTORS (UNPAID ONLY):", debtDetails);  // Update log
+  return debtDetails;
+};
 
   const debtDetails = getDebtors();
 
@@ -392,15 +404,22 @@ export default function InfoSplitBillScreen() {
       </View>
 
       {/* Nội dung tab */}
-      <ScrollView style={styles.history}>
-        {activeTab === "payment" ? (
-          // ✅ TAB THANH TOÁN
-          expenses.length === 0 ? (
+    <ScrollView style={styles.history}>
+      {activeTab === "payment" ? (
+        // ✅ TAB THANH TOÁN – FILTER UNSETTLED EXPENSES
+        (() => {
+          // ✅ Helper: Lấy chỉ expenses có net balance (unsettled cho current user)
+          const unsettledExpenses = expenses.filter(exp => {
+            const net = getNetAmount(exp);
+            return net !== 0; // Ẩn nếu net=0 (settled hoàn toàn)
+          });
+
+          return unsettledExpenses.length === 0 ? (
             <Text style={{ textAlign: "center", marginTop: 20, color: "#777" }}>
-              Chưa có khoản chi tiêu nào
+              ✅ Tất cả khoản chi tiêu đã thanh toán xong!
             </Text>
           ) : (
-            expenses.map((exp, index) => {
+            unsettledExpenses.map((exp, index) => {
               const net = getNetAmount(exp);
               const paidByName = exp.paidBy?.fullName || "Ai đó";
               const paidText =
@@ -420,7 +439,12 @@ export default function InfoSplitBillScreen() {
                       params: { expenseId: exp.expenseId, groupId: groupId },
                     })
                   }
-                  onLongPress={() => handleDeleteExpense(exp.expenseId)}
+                  onLongPress={
+                    // ✅ Chỉ cho phép long press nếu là creator (paidBy)
+                    exp.paidBy?.userId === currentUser?.userId
+                      ? () => handleDeleteExpense(exp.expenseId, exp.paidBy?.userId)
+                      : undefined
+                  }
                   delayLongPress={600}
                   style={styles.paymentRow}
                 >
@@ -451,8 +475,9 @@ export default function InfoSplitBillScreen() {
                 </TouchableOpacity>
               );
             })
-          )
-        ) : (
+          );
+        })()
+      ) : (
           // ✅ TAB NHẮC NỢ
           <View style={{ padding: 16 }}>
             {reminderSuccess ? (
