@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,19 +6,31 @@ import {
   TouchableOpacity,
   Image,
   TextInput,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, router } from "expo-router";
-import AvatarDropdown from "../../components/AvatarDropdown";
 import { useStatusStore } from "../../store/useStatusStore";
 
 export default function PreviewScreen() {
   const params = useLocalSearchParams();
   const uri = params?.uri;
+  const groupId = params?.groupId;
+  const groupName = params?.groupName;
+
+  useEffect(() => {
+    console.log("Nhận params ở /group/preview:", params);
+    if (!uri) {
+      Alert.alert("Lỗi", "Không có ảnh để hiển thị");
+    }
+  }, [params]);
 
   const [isTyping, setIsTyping] = useState(false);
   const [text, setText] = useState("");
+  const [imageLoading, setImageLoading] = useState(true); // Thêm loading state
+  const [imageError, setImageError] = useState(false); // Thêm error state
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
@@ -33,6 +45,8 @@ export default function PreviewScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerRight}>
+          <Text style={{ fontWeight: 'bold', marginRight: 10 }}>{groupName || "Preview"}</Text>
+          
           <TouchableOpacity style={styles.iconBtn}>
             <Ionicons name="albums-outline" size={24} color="#000" />
           </TouchableOpacity>
@@ -46,9 +60,41 @@ export default function PreviewScreen() {
       {/* Image */}
       <View style={styles.imageWrap}>
         {uri ? (
-          <Image source={{ uri }} style={styles.image} resizeMode="cover" />
+          <>
+            {imageLoading && (
+              <ActivityIndicator 
+                size="large" 
+                color="#fff" 
+                style={StyleSheet.absoluteFill} // Overlay loading
+              />
+            )}
+            <Image 
+              source={{ uri }} 
+              style={styles.image} 
+              resizeMode="contain" // Thay "cover" bằng "contain" để tránh crop đen, test xem
+              onLoadStart={() => {
+                console.log("Bắt đầu load ảnh từ URI:", uri);
+                setImageLoading(true);
+                setImageError(false);
+              }}
+              onLoadEnd={() => {
+                console.log("Load ảnh xong");
+                setImageLoading(false);
+              }}
+              onError={(err) => {
+                console.error("Lỗi load ảnh:", err.nativeEvent.error);
+                setImageLoading(false);
+                setImageError(true);
+              }}
+            />
+            {imageError && (
+              <Text style={{ color: 'red', position: 'absolute' }}>Lỗi load ảnh!</Text>
+            )}
+          </>
         ) : (
-          <View style={styles.placeholder} />
+          <View style={styles.placeholder}>
+            <Text style={{ color: '#fff' }}>Không có ảnh</Text>
+          </View>
         )}
 
         {/* Overlay chữ nếu có */}
@@ -98,17 +144,17 @@ export default function PreviewScreen() {
         <TouchableOpacity
           style={styles.sendBtn}
           onPress={() => {
-            // thêm vào store
             useStatusStore.getState().addStatus({
               userId: "me", 
               id: Date.now().toString(), 
               text,
               uri,
+              groupId,
             });
 
             router.push({
               pathname: "/group/post-screen",
-              params: { uri, text },
+              params: { uri, text, groupId, groupName },
             });
           }}
         >
@@ -145,12 +191,24 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     borderRadius: 16,
     overflow: "hidden",
-    backgroundColor: "#000",
+    backgroundColor: "#000", // Nền đen: Nếu ảnh không load, bạn thấy đen → bình thường nếu error
     alignItems: "center",
     justifyContent: "center",
+    position: 'relative', // Để overlay loading
   },
-  image: { width: "100%", height: "100%" },
-  placeholder: { flex: 1, backgroundColor: "#000" },
+  image: { 
+    flex: 1, // Force full size
+    width: '100%', 
+    height: '100%',
+    backgroundColor: 'transparent', // Tránh đen từ image itself
+  },
+  placeholder: { 
+    flex: 1, 
+    width: '100%',
+    backgroundColor: "#333", 
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
   overlayText: {
     position: "absolute",

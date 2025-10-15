@@ -39,13 +39,16 @@ export default function HomeScreen() {
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null); 
   const [debtModalVisible, setDebtModalVisible] = useState(false);
-const [debtList, setDebtList] = useState([]);
-const [filteredDebtList, setFilteredDebtList] = useState([]); // ✅ Filtered cho search debt
-const [searchDebtQuery, setSearchDebtQuery] = useState(""); // ✅ Search query debt
-const [loadingDebt, setLoadingDebt] = useState(false);
-const [successVisible, setSuccessVisible] = useState(false);
-const [loadingRemindAll, setLoadingRemindAll] = useState(false);
+  const [debtList, setDebtList] = useState([]);
+  const [filteredDebtList, setFilteredDebtList] = useState([]); // ✅ Filtered cho search debt
+  const [searchDebtQuery, setSearchDebtQuery] = useState(""); // ✅ Search query debt
+  const [loadingDebt, setLoadingDebt] = useState(false);
+  const [successVisible, setSuccessVisible] = useState(false);
+  const [loadingRemindAll, setLoadingRemindAll] = useState(false);
 
+  // ✅ NEW: States cho groups thật ở home
+  const [recentGroups, setRecentGroups] = useState([]);
+  const [loadingRecentGroups, setLoadingRecentGroups] = useState(false);
 
   // 🌀 Animation cho chuông
   const shakeAnim = useRef(new Animated.Value(0)).current;
@@ -95,7 +98,32 @@ const [loadingRemindAll, setLoadingRemindAll] = useState(false);
     checkNotifications();
   }, []);
 
-  // ✅ Filter groups theo search
+  // ✅ Fetch recent groups thật cho home section
+  useEffect(() => {
+    const fetchRecentGroups = async () => {
+      try {
+        setLoadingRecentGroups(true);
+        const userId = await getUserId();
+        if (!userId) return;
+        const res = await groupService.getGroups(userId);
+        if (res.success && res.data?.data) {
+          const allGroups = res.data.data;
+          setRecentGroups(allGroups.slice(0, 4)); // Lấy 4 groups đầu tiên
+        } else {
+          setRecentGroups([]);
+        }
+      } catch (err) {
+        console.error("❌ Lỗi khi fetch recent groups:", err);
+        setRecentGroups([]);
+      } finally {
+        setLoadingRecentGroups(false);
+      }
+    };
+
+    fetchRecentGroups();
+  }, []);
+
+  // ✅ Filter groups theo search (cho modal thanh toán)
   useEffect(() => {
     if (searchQuery === "") {
       setFilteredGroups(groups);
@@ -158,24 +186,23 @@ const [loadingRemindAll, setLoadingRemindAll] = useState(false);
 
   // ✅ Xử lý chọn nhóm
   const handleSelectGroup = (group) => {
-  // Nếu nhóm đang được chọn lại chính là nhóm đang mở → đóng lại
-  if (selectedGroup && (selectedGroup.id || selectedGroup.groupId) === (group.id || group.groupId)) {
-    setSelectedGroup(null);
-    setMembers([]); // Ẩn danh sách thành viên
-    return;
-  }
+    // Nếu nhóm đang được chọn lại chính là nhóm đang mở → đóng lại
+    if (selectedGroup && (selectedGroup.id || selectedGroup.groupId) === (group.id || group.groupId)) {
+      setSelectedGroup(null);
+      setMembers([]); // Ẩn danh sách thành viên
+      return;
+    }
 
-  // Ngược lại → chọn nhóm mới và load member
-  setSelectedGroup(group);
-  fetchMembers(group.id || group.groupId);
-};
-
+    // Ngược lại → chọn nhóm mới và load member
+    setSelectedGroup(group);
+    fetchMembers(group.id || group.groupId);
+  };
 
   // ✅ Xử lý chọn thành viên để thanh toán
   const handleSelectMember = (member) => {
     const user = member.user || member; // Fallback nếu cấu trúc khác
     router.push({
-      pathname: "/chat/member-payment", // Giả sử path đến PaymentScreen
+      pathname: "/chat/member-debt-detail",
       params: {
         payerId: user.userId,
         groupId: selectedGroup.id || selectedGroup.groupId,
@@ -201,7 +228,7 @@ const [loadingRemindAll, setLoadingRemindAll] = useState(false);
     setSearchDebtQuery(""); // ✅ Clear search khi đóng
   };
 
-  // ✅ Render item nhóm
+  // ✅ Render item nhóm (cho modal)
   const renderGroupItem = ({ item }) => (
     <TouchableOpacity
       style={styles.groupModalItem}
@@ -215,10 +242,10 @@ const [loadingRemindAll, setLoadingRemindAll] = useState(false);
       />
       <Text style={styles.groupModalName}>{item.groupName || item.name || "Nhóm không tên"}</Text>
       {selectedGroup && (selectedGroup.id === item.id || selectedGroup.groupId === item.groupId) ? (
-  <Ionicons name="chevron-up" size={20} color="#2ECC71" />
-) : (
-  <Ionicons name="chevron-down" size={20} color="#999" />
-)}
+        <Ionicons name="chevron-up" size={20} color="#2ECC71" />
+      ) : (
+        <Ionicons name="chevron-down" size={20} color="#999" />
+      )}
     </TouchableOpacity>
   );
 
@@ -243,53 +270,87 @@ const [loadingRemindAll, setLoadingRemindAll] = useState(false);
     );
   };
 
+  const renderRecentGroupItem = ({ item }) => {
+  const params = {
+    groupId: item.id || item.groupId,
+    groupName: item.groupName || item.name,
+    avatarUrl: item.avatarUrl,
+  };
+
+  // 👈 Thêm log params truyền đi
+  console.log("📤 Truyền params đến /group/camera:", params);
+
+  return (
+    <TouchableOpacity
+      style={styles.groupBox}
+      onPress={() => router.push({
+        pathname: "/group/camera",
+        params, // Sử dụng biến để dễ log
+      })}
+    >
+      <Image
+        source={{
+          uri: item.avatarUrl || `https://api.dicebear.com/7.x/identicon/png?seed=${item.id}`,
+        }}
+        style={styles.groupImage}
+      />
+      <Text style={{ textAlign: 'center', marginTop: 8 }}>{item.groupName || item.name || "Nhóm không tên"}</Text>
+    </TouchableOpacity>
+  );
+};
+
   const fetchAllDebtReminders = async () => {
-  try {
-    setLoadingDebt(true);
-    const userId = await getUserId();
-    if (!userId) return;
+    try {
+      setLoadingDebt(true);
+      const userId = await getUserId();
+      if (!userId) return;
 
-    const res = await expenseService.getAllDebtReminders(userId);
-    console.log("✅ Danh sách nhắc nợ:", res);
+      const res = await expenseService.getAllDebtReminders(userId);
+      console.log("✅ Danh sách nhắc nợ:", res);
 
-    if (res?.data && Array.isArray(res.data)) {
-      setDebtList(res.data);
-      setFilteredDebtList(res.data); // ✅ Set filtered
-    } else if (res?.data?.data) {
-      setDebtList(res.data.data);
-      setFilteredDebtList(res.data.data); // ✅ Set filtered
-    } else {
+      let rawData;
+      if (res?.data && Array.isArray(res.data)) {
+        rawData = res.data;
+      } else if (res?.data?.data) {
+        rawData = res.data.data;
+      } else {
+        rawData = [];
+      }
+
+      // ✅ Filter chỉ lấy những người còn nợ (totalOwedAmount > 0)
+      const filteredData = rawData.filter(item => (item.totalOwedAmount || 0) > 0);
+
+      setDebtList(filteredData);
+      setFilteredDebtList(filteredData); // ✅ Set filtered
+    } catch (error) {
+      console.error("❌ Lỗi khi lấy danh sách nhắc nợ:", error);
       setDebtList([]);
       setFilteredDebtList([]);
+    } finally {
+      setLoadingDebt(false);
     }
-  } catch (error) {
-    console.error("❌ Lỗi khi lấy danh sách nhắc nợ:", error);
-  } finally {
-    setLoadingDebt(false);
-  }
-};
+  };
 
-const handleRemindAll = async () => {
-  try {
-    setLoadingRemindAll(true);
-    const userId = await getUserId();
-    if (!userId) return;
+  const handleRemindAll = async () => {
+    try {
+      setLoadingRemindAll(true);
+      const userId = await getUserId();
+      if (!userId) return;
 
-    const res = await expenseService.createAllDebtReminders(userId);
-    console.log("✅ Nhắc tất cả thành công:", res);
+      const res = await expenseService.createAllDebtReminders(userId);
+      console.log("✅ Nhắc tất cả thành công:", res);
 
-    // Hiện popup thành công
-    setSuccessVisible(true);
-    // Tự tắt sau 2 giây
-    setTimeout(() => setSuccessVisible(false), 2000);
-  } catch (error) {
-    console.error("❌ Lỗi khi nhắc tất cả:", error);
-    Alert.alert("Lỗi", error.message || "Không thể nhắc tất cả");
-  } finally {
-    setLoadingRemindAll(false);
-  }
-};
-
+      // Hiện popup thành công
+      setSuccessVisible(true);
+      // Tự tắt sau 2 giây
+      setTimeout(() => setSuccessVisible(false), 2000);
+    } catch (error) {
+      console.error("❌ Lỗi khi nhắc tất cả:", error);
+      Alert.alert("Lỗi", error.message || "Không thể nhắc tất cả");
+    } finally {
+      setLoadingRemindAll(false);
+    }
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -326,71 +387,36 @@ const handleRemindAll = async () => {
           </View>
         </SafeAreaView>
 
-        {/* Phần còn lại giữ nguyên */}
+        {/* Phần groups thật */}
         <View style={styles.groupsSection}>
           <View style={styles.groups}>
-            <TouchableOpacity
-              style={styles.groupBox}
-              onPress={() => router.push("/group/camera")}
-            >
-              <Image
-                source={{ uri: "https://randomuser.me/api/portraits/men/1.jpg" }}
-                style={styles.groupImage}
+            {loadingRecentGroups ? (
+              <ActivityIndicator size="large" color="#2ECC71" style={{ margin: 20 }} />
+            ) : recentGroups.length > 0 ? (
+              <FlatList
+                data={recentGroups}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(item) => item.id?.toString() || item.groupId?.toString()}
+                renderItem={renderRecentGroupItem}
               />
-              <Text>Group 1</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.groupBox}
-              onPress={() => router.push("/group/camera")}
-            >
-              <Image
-                source={{
-                  uri: "https://randomuser.me/api/portraits/women/2.jpg",
-                }}
-                style={styles.groupImage}
-              />
-              <Text>Group 2</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.groupBox}
-              onPress={() => router.push("/group/camera")}
-            >
-              <Image
-                source={{ uri: "https://picsum.photos/100?random=3" }}
-                style={styles.groupImage}
-              />
-              <Text>Group 3</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.groupBox}
-              onPress={() => router.push("/group/camera")}
-            >
-              <Image
-                source={{
-                  uri: "https://source.unsplash.com/random/100x100?friends",
-                }}
-                style={styles.groupImage}
-              />
-              <Text>Group 4</Text>
-            </TouchableOpacity>
+            ) : (
+              <Text style={{ textAlign: 'center', color: '#888' }}>Chưa có nhóm nào</Text>
+            )}
           </View>
 
           {/* Nhắc nợ & Chia tiền */}
           <View style={styles.actionContainer}>
-           <TouchableOpacity
-  style={[styles.actionItem, styles.leftItem]}
-  onPress={() => {
-    fetchAllDebtReminders();
-    setDebtModalVisible(true);
-  }}
->
-  <Ionicons name="notifications-circle-outline" size={28} color="#555" />
-  <Text style={styles.actionText}>Nhắc nợ</Text>
-</TouchableOpacity>
-
+            <TouchableOpacity
+              style={[styles.actionItem, styles.leftItem]}
+              onPress={() => {
+                fetchAllDebtReminders();
+                setDebtModalVisible(true);
+              }}
+            >
+              <Ionicons name="notifications-circle-outline" size={28} color="#555" />
+              <Text style={styles.actionText}>Nhắc nợ</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.actionItem, styles.rightItem]}
@@ -498,13 +524,11 @@ const handleRemindAll = async () => {
                 ListEmptyComponent={<Text style={{ textAlign: "center", marginTop: 50, color: "#888" }}>Không có nhóm nào phù hợp</Text>}
               />
             )}
-
-            {/* Danh sách thành viên khi chọn nhóm */}
             {selectedGroup && (
               <View style={{ padding: 16, borderTopWidth: 1, borderColor: "#eee" }}>
                 <TouchableOpacity
                   style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}
-                  onPress={() => setSelectedGroup(null)} // Đóng sub-list
+                  onPress={() => setSelectedGroup(null)} 
                 >
                   <Ionicons name="chevron-up" size={20} color="#2ECC71" />
                   <Text style={{ marginLeft: 8, fontSize: 16, fontWeight: "500" }}>
@@ -527,135 +551,131 @@ const handleRemindAll = async () => {
           </View>
         </SafeAreaView>
       </Modal>
-    {/* ✅ Modal Nhắc nợ */}
-<Modal
-  visible={debtModalVisible}
-  animationType="slide"
-  presentationStyle="pageSheet"
-  onRequestClose={closeDebtModal}
->
-  <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-    {/* Header modal với search */}
-    <View style={{ padding: 16, borderBottomWidth: 1, borderColor: "#eee" }}>
-      <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 12 }}>Nhắc nợ</Text>
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Tìm kiếm người nợ..."
-        value={searchDebtQuery}
-        onChangeText={setSearchDebtQuery}
-        placeholderTextColor="#999"
-      />
-      <TouchableOpacity onPress={closeDebtModal} style={{ alignSelf: "flex-end", marginTop: 8 }}>
-        <Ionicons name="close" size={24} color="#666" />
-      </TouchableOpacity>
-    </View>
+      <Modal
+        visible={debtModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={closeDebtModal}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+          <View style={{ padding: 16, borderBottomWidth: 1, borderColor: "#eee" }}>
+            <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 12 }}>Nhắc nợ</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Tìm kiếm người nợ..."
+              value={searchDebtQuery}
+              onChangeText={setSearchDebtQuery}
+              placeholderTextColor="#999"
+            />
+            <TouchableOpacity onPress={closeDebtModal} style={{ alignSelf: "flex-end", marginTop: 8 }}>
+              <Ionicons name="close" size={24} color="#666" />
+            </TouchableOpacity>
+          </View>
 
-    <View style={{ flex: 1 }}>
-      {loadingDebt ? (
-        <ActivityIndicator size="large" color="#2ECC71" style={{ marginTop: 50 }} />
-      ) : (
-        <FlatList
-          data={filteredDebtList}
-          keyExtractor={(item, index) => item.debtorId || index.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.memberModalItem}>
-              <Image
-                source={{
-                  uri: item.avatarUrl || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
-                }}
-                style={styles.memberModalAvatar}
+          <View style={{ flex: 1 }}>
+            {loadingDebt ? (
+              <ActivityIndicator size="large" color="#2ECC71" style={{ marginTop: 50 }} />
+            ) : (
+              <FlatList
+                data={filteredDebtList}
+                keyExtractor={(item, index) => item.debtorId || index.toString()}
+                renderItem={({ item }) => (
+                  <View style={styles.memberModalItem}>
+                    <Image
+                      source={{
+                        uri: item.avatarUrl || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+                      }}
+                      style={styles.memberModalAvatar}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.memberModalName}>{item.debtorName}</Text>
+                      <Text style={{ color: "#555", fontSize: 14 }}>Nợ: {item.totalOwedAmount?.toLocaleString("vi-VN") || 0}₫</Text>
+                    </View>
+                  </View>
+                )}
+                style={{ padding: 16 }}
+                ListEmptyComponent={<Text style={{ textAlign: "center", marginTop: 50, color: "#888" }}>Không có ai đang nợ bạn</Text>}
               />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.memberModalName}>{item.debtorName}</Text>
-                <Text style={{ color: "#555", fontSize: 14 }}>Nợ: {item.totalOwedAmount?.toLocaleString("vi-VN") || 0}₫</Text>
-              </View>
-            </View>
-          )}
-          style={{ padding: 16 }}
-          ListEmptyComponent={<Text style={{ textAlign: "center", marginTop: 50, color: "#888" }}>Không có ai đang nợ bạn</Text>}
-        />
-      )}
-    </View>
+            )}
+          </View>
 
-    {/* ✅ Nút Nhắc tất cả nằm TRONG modal */}
-    <View
-      style={{
-        padding: 16,
-        borderTopWidth: 1,
-        borderColor: "#eee",
-        backgroundColor: "#fff",
-      }}
-    >
-      <TouchableOpacity
-        style={{
-          backgroundColor: "#2ECC71",
-          paddingVertical: 12,
-          borderRadius: 10,
-          alignItems: "center",
-          flexDirection: "row",
-          justifyContent: "center",
-        }}
-        onPress={handleRemindAll}
-        disabled={loadingRemindAll}
-      >
-        {loadingRemindAll ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <>
-            <Ionicons name="notifications-outline" size={20} color="#fff" />
-            <Text style={{ color: "#fff", fontWeight: "bold", marginLeft: 8 }}>
-              Nhắc tất cả
-            </Text>
-          </>
-        )}
-      </TouchableOpacity>
-    </View>
-
-    {/* ✅ Popup “Đã nhắc thành công” */}
-    <Modal
-      visible={successVisible}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setSuccessVisible(false)}
-    >
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "rgba(0,0,0,0.3)",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <View
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: 16,
-            padding: 24,
-            alignItems: "center",
-            width: 160,
-          }}
-        >
           <View
             style={{
-              width: 70,
-              height: 70,
-              borderRadius: 35,
-              backgroundColor: "#b2f1c9",
-              alignItems: "center",
-              justifyContent: "center",
-              marginBottom: 12,
+              padding: 16,
+              borderTopWidth: 1,
+              borderColor: "#eee",
+              backgroundColor: "#fff",
             }}
           >
-            <Ionicons name="checkmark" size={40} color="#2ECC71" />
+            <TouchableOpacity
+              style={{
+                backgroundColor: "#2ECC71",
+                paddingVertical: 12,
+                borderRadius: 10,
+                alignItems: "center",
+                flexDirection: "row",
+                justifyContent: "center",
+              }}
+              onPress={handleRemindAll}
+              disabled={loadingRemindAll}
+            >
+              {loadingRemindAll ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="notifications-outline" size={20} color="#fff" />
+                  <Text style={{ color: "#fff", fontWeight: "bold", marginLeft: 8 }}>
+                    Nhắc tất cả
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
-          <Text style={{ color: "#2ECC71", fontWeight: "bold", textAlign: "center" }}>
-            Đã nhắc thành công
-          </Text>
-        </View>
-      </View>
-    </Modal>
-  </SafeAreaView>
-</Modal>
+
+          <Modal
+            visible={successVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setSuccessVisible(false)}
+          >
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: "rgba(0,0,0,0.3)",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <View
+                style={{
+                  backgroundColor: "#fff",
+                  borderRadius: 16,
+                  padding: 24,
+                  alignItems: "center",
+                  width: 160,
+                }}
+              >
+                <View
+                  style={{
+                    width: 70,
+                    height: 70,
+                    borderRadius: 35,
+                    backgroundColor: "#b2f1c9",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: 12,
+                  }}
+                >
+                  <Ionicons name="checkmark" size={40} color="#2ECC71" />
+                </View>
+                <Text style={{ color: "#2ECC71", fontWeight: "bold", textAlign: "center" }}>
+                  Đã nhắc thành công
+                </Text>
+              </View>
+            </View>
+          </Modal>
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 }
