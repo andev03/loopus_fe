@@ -74,6 +74,22 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   backText: { color: "#fff", marginLeft: 6, fontWeight: "600" },
+  depositButton: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: "#2ECC71",
+  padding: 12,
+  marginVertical: 10,
+  borderRadius: 8,
+},
+depositText: {
+  color: "#fff",
+  fontSize: 16,
+  marginLeft: 8,
+  fontWeight: "bold",
+},
+
 });
 
 export default styles;

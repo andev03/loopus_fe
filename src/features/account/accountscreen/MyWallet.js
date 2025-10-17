@@ -108,6 +108,15 @@ export default function MyWalletScreen() {
         </Text>
       </View>
 
+      {/* Nút nạp tiền */}
+<TouchableOpacity
+  style={styles.depositButton}
+  onPress={() => router.push("/account/deposit")} 
+>
+  <Ionicons name="add-circle-outline" size={20} color="#fff" />
+  <Text style={styles.depositText}>Nạp tiền</Text>
+</TouchableOpacity>
+
       {/* Danh sách giao dịch */}
       <Text style={styles.sectionTitle}>Giao dịch gần đây</Text>
       <FlatList

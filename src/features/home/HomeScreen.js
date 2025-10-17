@@ -317,8 +317,8 @@ export default function HomeScreen() {
         rawData = [];
       }
 
-      // ✅ Filter chỉ lấy những người còn nợ (totalOwedAmount > 0)
-      const filteredData = rawData.filter(item => (item.totalOwedAmount || 0) > 0);
+      // ✅ Filter chỉ lấy những người còn nợ (totalOwedAmount > 0 và allPaid === false)
+      const filteredData = rawData.filter(item => (item.totalOwedAmount || 0) > 0 && !item.allPaid);
 
       setDebtList(filteredData);
       setFilteredDebtList(filteredData); // ✅ Set filtered
