@@ -39,19 +39,34 @@ export default function PreviewScreen() {
     if (!uri) Alert.alert("Lỗi", "Không có ảnh để hiển thị");
   }, [params]);
 
+  // 🔄 Fetch album from API instead of AsyncStorage
   useEffect(() => {
-  const fetchAlbum = async () => {
-    if (groupId) {
-      const saved = await getAlbumForGroup(groupId);
-      if (saved) {
-        setAlbumId(saved.albumId);
-        setAlbumName(saved.albumName);
-        console.log("📦 Đã khôi phục album:", saved);
+    const fetchAlbum = async () => {
+      if (!groupId) return;
+
+      try {
+        setLoadingAlbum(true);
+        const res = await albumService.getAlbumsByGroup(groupId);
+
+        if (res.success && res.data) {
+          const albums = res.data.data || res.data;
+          // Get the first album or most recent one
+          if (albums && albums.length > 0) {
+            const album = albums[0];
+            setAlbumId(album.albumId);
+            setAlbumName(album.name);
+            console.log("📦 Đã lấy album từ API:", album);
+          }
+        }
+      } catch (error) {
+        console.error("❌ Lỗi lấy album:", error);
+      } finally {
+        setLoadingAlbum(false);
       }
-    }
-  };
-  fetchAlbum();
-}, [groupId]);
+    };
+
+    fetchAlbum();
+  }, [groupId]);
 
   // 🟢 Khi nhấn tạo album
   const handleAlbumPress = async () => {
@@ -102,8 +117,8 @@ export default function PreviewScreen() {
         }
 
         setAlbumId(newAlbumId);
+        setAlbumName(albumName);
         Alert.alert("🎉 Thành công", "Đã tạo album mới!");
-        await saveAlbumForGroup(groupId, newAlbumId, albumName);
 
         router.push({
           pathname: "/group/album-screen",
@@ -215,58 +230,58 @@ export default function PreviewScreen() {
           </TouchableOpacity>
         </View>
 
-       <TouchableOpacity
-  style={styles.sendBtn}
-  onPress={() => {
-    // 🧠 (Tuỳ chọn) lưu tạm vào Zustand để hiển thị story local
-    useStatusStore.getState().addStatus({
-      userId: "me",
-      id: Date.now().toString(),
-      text,
-      uri,
-      groupId,
-    });
+        <TouchableOpacity
+          style={styles.sendBtn}
+          onPress={() => {
+            // 🧠 (Tuỳ chọn) lưu tạm vào Zustand để hiển thị story local
+            useStatusStore.getState().addStatus({
+              userId: "me",
+              id: Date.now().toString(),
+              text,
+              uri,
+              groupId,
+            });
 
-    // 📤 Gửi sang PostScreen
-    router.push({
-      pathname: "/group/post-screen",
-      params: {
-        uri,
-        text,
-        groupId,
-        groupName,
-        albumId: albumId || "", // ✅ thêm dòng này
-      },
-    });
-  }}
->
-  <Ionicons name="arrow-forward" size={24} color="#fff" />
-</TouchableOpacity>
+            // 📤 Gửi sang PostScreen
+            router.push({
+              pathname: "/group/post-screen",
+              params: {
+                uri,
+                text,
+                groupId,
+                groupName,
+                albumId: albumId || "", // ✅ thêm dòng này
+              },
+            });
+          }}
+        >
+          <Ionicons name="arrow-forward" size={24} color="#fff" />
+        </TouchableOpacity>
 
       </View>
 
       {/* Nhập tên album (modal) */}
       <Modal transparent visible={modalVisible} animationType="fade">
-  <View style={styles.modalOverlay}>
-    <View style={styles.modalBox}>
-      <Text style={styles.modalTitle}>Đặt tên album</Text>
-      <TextInput
-        placeholder="Ví dụ: Sinh nhật nhóm 🌸"
-        value={albumName}
-        onChangeText={setAlbumName}
-        style={styles.modalInput}
-      />
-      <View style={styles.modalRow}>
-        <TouchableOpacity onPress={() => setModalVisible(false)}>
-          <Text style={styles.modalCancel}>Hủy</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={confirmCreateAlbum}>
-          <Text style={styles.modalConfirm}>Tạo</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </View>
-</Modal>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Đặt tên album</Text>
+            <TextInput
+              placeholder="Ví dụ: Sinh nhật nhóm 🌸"
+              value={albumName}
+              onChangeText={setAlbumName}
+              style={styles.modalInput}
+            />
+            <View style={styles.modalRow}>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <Text style={styles.modalCancel}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={confirmCreateAlbum}>
+                <Text style={styles.modalConfirm}>Tạo</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
     </SafeAreaView>
   );

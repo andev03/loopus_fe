@@ -12,7 +12,7 @@ export default function StoriesList() {
             key={item.id}
             onPress={() =>
               router.push({
-                pathname: "/group/status-viewer", 
+                pathname: "/group/status-viewer",
                 params: { storyId: item.id },
               })
             }

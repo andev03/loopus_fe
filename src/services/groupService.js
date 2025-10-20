@@ -1,6 +1,6 @@
 import axios from "axios";
-
-const API_URL = "https://loopus.nguyenhoangan.site/api/groups"; 
+import { api } from './http'
+const API_URL = "https://loopus.nguyenhoangan.site/api/groups";
 const API_SINGLE = process.env.EXPO_PUBLIC_API_GROUP;
 
 export const groupService = {
@@ -72,19 +72,19 @@ export const groupService = {
   },
 
   leaveGroup: async (groupId, userId) => {
-  try {
-    const res = await axios.delete(`${API_URL}/leave-group`, {
-      data: { groupId, userId },      // 👈 DELETE phải để trong data
-      headers: { "Content-Type": "application/json" }
-    });
-    return { success: true, data: res.data };
-  } catch (error) {
-    console.error("❌ Lỗi rời nhóm:", error.response?.data || error.message);
-    return { success: false, error };
-  }
-},
+    try {
+      const res = await axios.delete(`${API_URL}/leave-group`, {
+        data: { groupId, userId },      // 👈 DELETE phải để trong data
+        headers: { "Content-Type": "application/json" }
+      });
+      return { success: true, data: res.data };
+    } catch (error) {
+      console.error("❌ Lỗi rời nhóm:", error.response?.data || error.message);
+      return { success: false, error };
+    }
+  },
 
-viewMembers: async (groupId) => {
+  viewMembers: async (groupId) => {
     try {
       const res = await axios.get(`${API_URL}/view-member`, {
         params: { groupId },
@@ -105,85 +105,107 @@ viewMembers: async (groupId) => {
     }
   },
 
-updateGroupInfo: async (data) => {
-  try {
-    console.log("📦 Payload update group:", data);
-    const res = await axios.put(`${API_SINGLE}/update-information`, data, {
-      headers: { "Content-Type": "application/json" }
-    });
+  updateGroupInfo: async (data) => {
+    try {
+      console.log("📦 Payload update group:", data);
+      const res = await axios.put(`${API_SINGLE}/update-information`, data, {
+        headers: { "Content-Type": "application/json" }
+      });
 
-    if (res.status === 200) {
-      console.log("✅ Update group thành công:", res.data);
-      return { success: true, data: res.data };
-    } else {
-      console.log("⚠️ Update group trả về status:", res.status);
-      return { success: false, data: res.data };
-    }
-  } catch (error) {
-    console.error("❌ Lỗi update group:", error.response?.data || error.message);
-    return { success: false, error };
-  }
-},
-
-getGroupById: async (groupName, userId) => {
-  try {
-    const res = await axios.get(API_SINGLE, {
-      params: { groupName, userId },
-    });
-    if (res.status === 200) {
-      console.log("✅ getGroupById:", res.data);
-      return { success: true, data: res.data };
-    }
-    return { success: false, data: res.data };
-  } catch (error) {
-    console.error("❌ getGroupById error:", error.response?.data || error.message);
-    return { success: false, error };
-  }
-},
-
-updateGroupAvatar: async (groupId, fileUri) => {
-  try {
-    const formData = new FormData();
-    formData.append("file", {
-      uri: fileUri,
-      name: "avatar.jpg",
-      type: "image/jpeg",
-    });
-
-    const res = await axios.put(
-      `${API_SINGLE}/update-avatar?groupId=${groupId}`,
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+      if (res.status === 200) {
+        console.log("✅ Update group thành công:", res.data);
+        return { success: true, data: res.data };
+      } else {
+        console.log("⚠️ Update group trả về status:", res.status);
+        return { success: false, data: res.data };
       }
-    );
+    } catch (error) {
+      console.error("❌ Lỗi update group:", error.response?.data || error.message);
+      return { success: false, error };
+    }
+  },
 
-    if (res.status === 200) {
-      console.log("✅ Update avatar thành công:", res.data);
-      return { success: true, data: res.data };
-    } else {
-      console.log("⚠️ Update avatar trả về:", res.status);
+  getGroupById: async (groupName, userId) => {
+    try {
+      const res = await axios.get(API_SINGLE, {
+        params: { groupName, userId },
+      });
+      if (res.status === 200) {
+        console.log("✅ getGroupById:", res.data);
+        return { success: true, data: res.data };
+      }
       return { success: false, data: res.data };
+    } catch (error) {
+      console.error("❌ getGroupById error:", error.response?.data || error.message);
+      return { success: false, error };
     }
-  } catch (error) {
-    console.error("❌ Lỗi update avatar:", error.response?.data || error.message);
-    return { success: false, error };
-  }
-},
+  },
 
-deleteGroup: async (groupId) => {
-  try {
-    const res = await axios.delete(`${API_SINGLE}?groupId=${groupId}`);
-    if (res.status === 200) {
-      console.log("✅ Giải tán nhóm thành công:", res.data);
-      return { success: true, data: res.data };
+  updateGroupAvatar: async (groupId, fileUri) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", {
+        uri: fileUri,
+        name: "avatar.jpg",
+        type: "image/jpeg",
+      });
+
+      const res = await axios.put(
+        `${API_SINGLE}/update-avatar?groupId=${groupId}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      if (res.status === 200) {
+        console.log("✅ Update avatar thành công:", res.data);
+        return { success: true, data: res.data };
+      } else {
+        console.log("⚠️ Update avatar trả về:", res.status);
+        return { success: false, data: res.data };
+      }
+    } catch (error) {
+      console.error("❌ Lỗi update avatar:", error.response?.data || error.message);
+      return { success: false, error };
     }
-    return { success: false, data: res.data };
-  } catch (error) {
-    console.error("❌ Lỗi giải tán nhóm:", error.response?.data || error.message);
-    return { success: false, error };
-  }
-},
+  },
+
+  deleteGroup: async (groupId) => {
+    try {
+      const res = await axios.delete(`${API_SINGLE}?groupId=${groupId}`);
+      if (res.status === 200) {
+        console.log("✅ Giải tán nhóm thành công:", res.data);
+        return { success: true, data: res.data };
+      }
+      return { success: false, data: res.data };
+    } catch (error) {
+      console.error("❌ Lỗi giải tán nhóm:", error.response?.data || error.message);
+      return { success: false, error };
+    }
+  },
 };
+
+export async function listGroups() {
+  const res = await api.get('/api/groups')
+  return res.data
+}
+
+export async function createGroup({
+  name, description, avatarUrl, userMemberIds = []
+}) {
+  const res = await api.post('/api/groups', { name, description, avatarUrl, userMemberIds })
+  return res.data
+}
+
+export async function addMemberToGroup({ senderId, groupId, userId }) {
+  const res = await api.put(`/api/groups/add-members`, { senderId, groupId, userId })
+  return res.data
+}
+
+export async function getGroup(groupId) {
+  const res = await api.get(`/api/groups/${groupId}`)
+  return res.data
+}

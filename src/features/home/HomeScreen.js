@@ -20,7 +20,7 @@ import { useRouter } from "expo-router";
 import ChatModal from "../home/ChatModal";
 import { notificationService } from "../../services/notificationService";
 import { getUserId } from "../../services/storageService";
-import { groupService } from "../../services/groupService"; 
+import { groupService } from "../../services/groupService";
 import { expenseService } from "../../services/expenseService";
 
 export default function HomeScreen() {
@@ -37,7 +37,7 @@ export default function HomeScreen() {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [loadingMembers, setLoadingMembers] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState(null); 
+  const [currentUserId, setCurrentUserId] = useState(null);
   const [debtModalVisible, setDebtModalVisible] = useState(false);
   const [debtList, setDebtList] = useState([]);
   const [filteredDebtList, setFilteredDebtList] = useState([]); // ✅ Filtered cho search debt
@@ -271,33 +271,33 @@ export default function HomeScreen() {
   };
 
   const renderRecentGroupItem = ({ item }) => {
-  const params = {
-    groupId: item.id || item.groupId,
-    groupName: item.groupName || item.name,
-    avatarUrl: item.avatarUrl,
+    const params = {
+      groupId: item.id || item.groupId,
+      groupName: item.groupName || item.name,
+      avatarUrl: item.avatarUrl,
+    };
+
+    // 👈 Thêm log params truyền đi
+    console.log("📤 Truyền params đến /group/camera:", params);
+
+    return (
+      <TouchableOpacity
+        style={styles.groupBox}
+        onPress={() => router.push({
+          pathname: "/group/camera",
+          params, // Sử dụng biến để dễ log
+        })}
+      >
+        <Image
+          source={{
+            uri: item.avatarUrl || `https://api.dicebear.com/7.x/identicon/png?seed=${item.id}`,
+          }}
+          style={styles.groupImage}
+        />
+        <Text style={{ textAlign: 'center', marginTop: 8 }}>{item.groupName || item.name || "Nhóm không tên"}</Text>
+      </TouchableOpacity>
+    );
   };
-
-  // 👈 Thêm log params truyền đi
-  console.log("📤 Truyền params đến /group/camera:", params);
-
-  return (
-    <TouchableOpacity
-      style={styles.groupBox}
-      onPress={() => router.push({
-        pathname: "/group/camera",
-        params, // Sử dụng biến để dễ log
-      })}
-    >
-      <Image
-        source={{
-          uri: item.avatarUrl || `https://api.dicebear.com/7.x/identicon/png?seed=${item.id}`,
-        }}
-        style={styles.groupImage}
-      />
-      <Text style={{ textAlign: 'center', marginTop: 8 }}>{item.groupName || item.name || "Nhóm không tên"}</Text>
-    </TouchableOpacity>
-  );
-};
 
   const fetchAllDebtReminders = async () => {
     try {
@@ -387,7 +387,7 @@ export default function HomeScreen() {
           </View>
         </SafeAreaView>
 
-        {/* Phần groups thật */}
+        {/* Groups sections */}
         <View style={styles.groupsSection}>
           <View style={styles.groups}>
             {loadingRecentGroups ? (
@@ -404,6 +404,14 @@ export default function HomeScreen() {
               <Text style={{ textAlign: 'center', color: '#888' }}>Chưa có nhóm nào</Text>
             )}
           </View>
+
+          {Array.isArray(groups) && groups.map((g) => (
+            <Link key={g.id} href={{ pathname: '/group/[groupId]', params: { groupId: g.id } }} asChild>
+              <TouchableOpacity style={{ width: 64, height: 64, borderRadius: 32, overflow: 'hidden', marginRight: 8 }}>
+                <Image source={{ uri: g.avatarUrl }} style={{ width: '100%', height: '100%' }} />
+              </TouchableOpacity>
+            </Link>
+          ))}
 
           {/* Nhắc nợ & Chia tiền */}
           <View style={styles.actionContainer}>
@@ -430,6 +438,8 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+
 
         {/* Các section khác giữ nguyên */}
         <Text style={styles.sectionTitle}>Du lịch</Text>
@@ -528,7 +538,7 @@ export default function HomeScreen() {
               <View style={{ padding: 16, borderTopWidth: 1, borderColor: "#eee" }}>
                 <TouchableOpacity
                   style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}
-                  onPress={() => setSelectedGroup(null)} 
+                  onPress={() => setSelectedGroup(null)}
                 >
                   <Ionicons name="chevron-up" size={20} color="#2ECC71" />
                   <Text style={{ marginLeft: 8, fontSize: 16, fontWeight: "500" }}>
