@@ -80,78 +80,104 @@ export default function PremiumScreen() {
 
         {/* Content Container */}
         <View style={{ padding: 20 }}>
-          {/* Features Card */}
-          <View
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: 16,
-              padding: 20,
-              marginTop: 16,
-              marginBottom: 20,
-              shadowColor: "#10b981",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 6,
-              elevation: 3,
-              borderWidth: 1.5,
-              borderColor: "#d1fae5",
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 16,
-                lineHeight: 24,
-                color: "#064e3b",
-                fontWeight: "600",
-                marginBottom: 12,
-              }}
-            >
-              🌟 Trải nghiệm không giới hạn:
-            </Text>
-            <View style={{ marginTop: 8 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 10,
-                  paddingLeft: 8,
-                }}
-              >
-                <View
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: 3,
-                    backgroundColor: "#10b981",
-                    marginRight: 10,
-                  }}
-                />
-                <Text style={{ fontSize: 15, color: "#065f46", flex: 1 }}>
-                  Tạo nhóm không giới hạn
-                </Text>
-              </View>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  paddingLeft: 8,
-                }}
-              >
-                <View
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: 3,
-                    backgroundColor: "#10b981",
-                    marginRight: 10,
-                  }}
-                />
-                <Text style={{ fontSize: 15, color: "#065f46", flex: 1 }}>
-                  Thêm chat trợ lý Loopus
-                </Text>
-              </View>
-            </View>
-          </View>
+         {/* Features Card */}
+<View
+  style={{
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 16,
+    marginBottom: 20,
+    shadowColor: "#10b981",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+    borderWidth: 1.5,
+    borderColor: "#d1fae5",
+  }}
+>
+  <Text
+    style={{
+      fontSize: 16,
+      lineHeight: 24,
+      color: "#064e3b",
+      fontWeight: "600",
+      marginBottom: 12,
+    }}
+  >
+    Trải nghiệm không giới hạn:
+  </Text>
+  <View style={{ marginTop: 8 }}>
+    {/* 1. Tạo nhóm không giới hạn */}
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 10,
+        paddingLeft: 8,
+      }}
+    >
+      <View
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: 3,
+          backgroundColor: "#10b981",
+          marginRight: 10,
+        }}
+      />
+      <Text style={{ fontSize: 15, color: "#065f46", flex: 1 }}>
+        Tạo nhóm không giới hạn
+      </Text>
+    </View>
+
+    {/* 2. Thêm thành viên không giới hạn */}
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 10,
+        paddingLeft: 8,
+      }}
+    >
+      <View
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: 3,
+          backgroundColor: "#10b981",
+          marginRight: 10,
+        }}
+      />
+      <Text style={{ fontSize: 15, color: "#065f46", flex: 1 }}>
+        Thêm thành viên không giới hạn 
+      </Text>
+    </View>
+
+    {/* 3. Chat trợ lý Loopus */}
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        paddingLeft: 8,
+      }}
+    >
+      <View
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: 3,
+          backgroundColor: "#10b981",
+          marginRight: 10,
+        }}
+      />
+      <Text style={{ fontSize: 15, color: "#065f46", flex: 1 }}>
+        Thêm chat trợ lý Loopus
+      </Text>
+    </View>
+  </View>
+</View>
 
           {/* Price Card */}
           <View

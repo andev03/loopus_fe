@@ -46,6 +46,18 @@ const styles = StyleSheet.create({
     color: "#333",
   },
 
+  counterContainer: {
+  paddingHorizontal: 16,
+  paddingVertical: 8,
+  backgroundColor: "#f0f0f0",
+  borderBottomWidth: 1,
+  borderColor: "#ddd",
+},
+counterText: {
+  fontSize: 14,
+  color: "#555",
+  fontWeight: "500",
+},
   item: {
     flexDirection: "row",
     alignItems: "center",

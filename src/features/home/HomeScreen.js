@@ -19,7 +19,7 @@ import styles from "./HomeScreen.styles";
 import { useRouter } from "expo-router";
 import ChatModal from "../home/ChatModal";
 import { notificationService } from "../../services/notificationService";
-import { getUserId } from "../../services/storageService";
+import { getUserId, getUser } from "../../services/storageService";
 import { groupService } from "../../services/groupService";
 import { expenseService } from "../../services/expenseService";
 import { Link } from "expo-router";
@@ -46,6 +46,7 @@ export default function HomeScreen() {
   const [loadingDebt, setLoadingDebt] = useState(false);
   const [successVisible, setSuccessVisible] = useState(false);
   const [loadingRemindAll, setLoadingRemindAll] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
   // ✅ NEW: States cho groups thật ở home
   const [recentGroups, setRecentGroups] = useState([]);
@@ -79,6 +80,19 @@ export default function HomeScreen() {
       { iterations: 3 } // lắc 3 lần
     ).start();
   };
+
+  useEffect(() => {
+  const loadUser = async () => {
+    try {
+      const user = await getUser();
+      setCurrentUser(user);
+      setCurrentUserId(user?.userId);
+    } catch (err) {
+      console.error("Lỗi load user:", err);
+    }
+  };
+  loadUser();
+}, []);
 
   // 📨 Kiểm tra có thông báo chưa đọc để lắc chuông
   useEffect(() => {
@@ -170,20 +184,61 @@ export default function HomeScreen() {
 
   // ✅ Fetch members khi chọn nhóm
   const fetchMembers = async (groupId) => {
-    try {
-      setLoadingMembers(true);
-      const res = await groupService.viewMembers(groupId);
-      if (res.success && res.data?.data) {
-        setMembers(res.data.data);
-      } else {
-        console.log("❌ Không lấy được danh sách thành viên");
-      }
-    } catch (err) {
-      console.error("❌ Lỗi khi fetch members:", err);
-    } finally {
-      setLoadingMembers(false);
+  try {
+    setLoadingMembers(true);
+    const currentUserId = await getUserId();
+    if (!currentUserId) return;
+
+    // 1. Lấy danh sách thành viên nhóm
+    const membersRes = await groupService.viewMembers(groupId);
+    if (!membersRes.success || !membersRes.data?.data) {
+      setMembers([]);
+      return;
     }
-  };
+
+    const rawMembers = membersRes.data.data;
+    const membersWithDebt = [];
+
+    // 2. Duyệt từng thành viên → lấy số tiền BẠN NỢ HỌ
+    for (const member of rawMembers) {
+      const user = member.user || member;
+      const memberId = user.userId || user.id;
+
+      // Bỏ qua chính mình
+      if (memberId === currentUserId) continue;
+
+      let debtAmount = 0;
+      try {
+        // API: getDebtReminder(creditorId, debtorId)
+        // Ở đây: memberId là chủ nợ, currentUserId là con nợ → "bạn nợ member"
+        const debtRes = await expenseService.getDebtReminder(memberId, currentUserId);
+
+        if (debtRes?.data && Array.isArray(debtRes.data)) {
+          const unpaid = debtRes.data.filter(d => !d.paid);
+          debtAmount = unpaid.reduce((sum, d) => sum + (d.shareAmount || 0), 0);
+        }
+      } catch (err) {
+        console.warn(`Không lấy được nợ với ${memberId}:`, err);
+        debtAmount = 0;
+      }
+
+      membersWithDebt.push({
+        ...user,
+        userId: memberId,
+        fullName: user.fullName || user.username,
+        avatarUrl: user.avatarUrl,
+        debtAmount, // Số tiền bạn nợ họ
+      });
+    }
+
+    setMembers(membersWithDebt);
+  } catch (err) {
+    console.error("Lỗi khi fetch members + debt:", err);
+    setMembers([]);
+  } finally {
+    setLoadingMembers(false);
+  }
+};
 
   // ✅ Xử lý chọn nhóm
   const handleSelectGroup = (group) => {
@@ -198,6 +253,28 @@ export default function HomeScreen() {
     setSelectedGroup(group);
     fetchMembers(group.id || group.groupId);
   };
+
+  const handleChatPress = () => {
+  if (currentUser?.role === "MEMBER") {
+    // MEMBER: mở chatbot
+    setChatVisible(true);
+  } else {
+    // USER: hỏi mua premium
+    Alert.alert(
+      "Tính năng dành cho thành viên",
+      "Chức năng Chat AI chỉ dành cho thành viên Loopus Premium. Bạn có muốn nâng cấp không?",
+      [
+        { text: "Không", style: "cancel" },
+        {
+          text: "Mua ngay",
+          onPress: () => {
+            router.push("account/premium");
+          },
+        },
+      ]
+    );
+  }
+};
 
   // ✅ Xử lý chọn thành viên để thanh toán
   const handleSelectMember = (member) => {
@@ -252,24 +329,37 @@ export default function HomeScreen() {
 
   // ✅ Render item thành viên (ẩn current user)
   const renderMemberItem = ({ item }) => {
-    const user = item.user || item;
-    // ✅ Ẩn nếu là current user
-    if (user.userId === currentUserId) return null;
-    return (
-      <TouchableOpacity
-        style={styles.memberModalItem}
-        onPress={() => handleSelectMember(user)}
-      >
-        <Image
-          source={{
-            uri: user.avatarUrl || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
-          }}
-          style={styles.memberModalAvatar}
-        />
-        <Text style={styles.memberModalName}>{user.fullName || user.username || "Không tên"}</Text>
-      </TouchableOpacity>
-    );
-  };
+  if (item.userId === currentUserId) return null;
+
+  const hasDebt = item.debtAmount > 0;
+
+  return (
+    <TouchableOpacity
+      style={styles.memberModalItem}
+      onPress={() => handleSelectMember(item)}
+    >
+      <Image
+        source={{
+          uri: item.avatarUrl || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+        }}
+        style={styles.memberModalAvatar}
+      />
+      <View style={{ flex: 1, marginLeft: 12 }}>
+        <Text style={styles.memberModalName}>
+          {item.fullName || "Không tên"}
+        </Text>
+        {hasDebt ? (
+          <Text style={{ color: "#E74C3C", fontSize: 13, fontWeight: "600" }}>
+            Bạn nợ: {item.debtAmount.toLocaleString()}₫
+          </Text>
+        ) : (
+          <Text style={{ color: "#aaa", fontSize: 12 }}>Bạn không nợ</Text>
+        )}
+      </View>
+      <Ionicons name="chevron-forward" size={20} color="#ccc" />
+    </TouchableOpacity>
+  );
+};
 
   const renderRecentGroupItem = ({ item }) => {
     const params = {
@@ -406,13 +496,7 @@ export default function HomeScreen() {
             )}
           </View>
 
-          {Array.isArray(groups) && groups.map((g) => (
-            <Link key={g.id} href={{ pathname: '/group/[groupId]', params: { groupId: g.id } }} asChild>
-              <TouchableOpacity style={{ width: 64, height: 64, borderRadius: 32, overflow: 'hidden', marginRight: 8 }}>
-                <Image source={{ uri: g.avatarUrl }} style={{ width: '100%', height: '100%' }} />
-              </TouchableOpacity>
-            </Link>
-          ))}
+      
 
           {/* Nhắc nợ & Chia tiền */}
           <View style={styles.actionContainer}>
@@ -488,17 +572,19 @@ export default function HomeScreen() {
         </ScrollView>
       </ScrollView>
 
-      {/* Floating Action Button cho Chatbot */}
-      <TouchableOpacity
-        style={styles.chatFAB}
-        onPress={() => setChatVisible(true)}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="chatbubble-outline" size={24} color="#fff" />
-      </TouchableOpacity>
+      {/* FAB Chatbot - luôn hiện, nhưng USER bị chặn */}
+<TouchableOpacity
+  style={styles.chatFAB}
+  onPress={handleChatPress}
+  activeOpacity={0.7}
+>
+  <Ionicons name="chatbubble-outline" size={24} color="#fff" />
+</TouchableOpacity> 
 
-      {/* Modal Chatbot */}
-      <ChatModal visible={chatVisible} onClose={() => setChatVisible(false)} />
+      {/* Modal Chatbot - chỉ hiện khi MEMBER mở */}
+{currentUser?.role === "MEMBER" && (
+  <ChatModal visible={chatVisible} onClose={() => setChatVisible(false)} />
+)}
 
       {/* ✅ Modal Thanh toán */}
       <Modal
