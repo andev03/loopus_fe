@@ -1,5 +1,4 @@
-// app/notification/chatloopus.js
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,33 +7,119 @@ import {
   FlatList,
   Image,
   StyleSheet,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { sendUserMessage, getChatMessages } from "../../../services/supportChatService";
+import { getUserId, getChatId, saveChatId } from "../../../services/storageService";
 
 export default function ChatLoopusScreen() {
   const navigation = useNavigation();
-  const [messages, setMessages] = useState([
-    {
-      id: "1",
-      sender: "Loopus",
-      text: "Chào bạn, mình có thể hỗ trợ gì cho bạn?",
-      time: "9:41",
-    },
-  ]);
+  const [userId, setUserId] = useState(null);
+  const [chatId, setChatId] = useState(null); // 🟢 Thêm state cho chatId
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const sendMessage = () => {
-    if (!input.trim()) return;
-    const newMsg = {
+  // 🟢 Lấy userId VÀ chatId từ AsyncStorage khi vào màn hình
+  useEffect(() => {
+    const fetchIds = async () => {
+      const id = await getUserId();
+      const savedChatId = await getChatId(); // 🟢 Lấy chatId đã lưu
+      console.log("👤 [USER] Lấy IDs từ storage:", { userId: id, chatId: savedChatId });
+      if (id) {
+        setUserId(id);
+        if (savedChatId) setChatId(savedChatId); // 🟢 Set chatId nếu có
+      } else {
+        Alert.alert("Lỗi", "Không tìm thấy thông tin người dùng");
+      }
+    };
+    fetchIds();
+  }, []);
+
+  // 🟢 Lấy tin nhắn khi có userId HOẶC chatId
+  useEffect(() => {
+    if (!userId) return;
+    const idToUse = chatId || userId; // 🟢 Ưu tiên chatId, fallback userId (lần đầu)
+    const fetchMessages = async () => {
+      try {
+        console.log("🔄 [CHAT] Bắt đầu load tin nhắn với ID:", idToUse);
+        setLoading(true);
+
+        const res = await getChatMessages(idToUse); // 🟢 Dùng idToUse
+        console.log("📦 [CHAT] Dữ liệu server trả về:", res);
+
+        const data = Array.isArray(res.data) ? res.data : [];
+        const formatted = data.map((msg) => ({
+          id: msg.id || Date.now().toString(),
+          sender: msg.isUser ? "Bạn" : "Loopus",
+          text: msg.message,
+          time: new Date(msg.createdAt).toLocaleTimeString().slice(0, 5),
+        }));
+        setMessages(formatted);
+
+        console.log(`✅ [CHAT] Đã load ${formatted.length} tin nhắn`);
+      } catch (error) {
+        console.log("❌ [CHAT] Lỗi khi load tin nhắn:", error);
+        // Nếu lỗi lần đầu (không có chat), có thể tạo bằng gửi message rỗng sau
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMessages();
+  }, [userId, chatId]); // 🟢 Depend vào cả 2 để reload khi có chatId mới
+
+  // 🟢 Gửi tin nhắn user
+  const sendMessage = async () => {
+    if (!input.trim() || !userId) return;
+
+    const userMsg = {
       id: Date.now().toString(),
       sender: "Bạn",
       text: input,
       time: new Date().toLocaleTimeString().slice(0, 5),
     };
-    setMessages([...messages, newMsg]);
+    setMessages((prev) => [...prev, userMsg]);
+
+    const content = input;
     setInput("");
+
+    console.log("✉️ [CHAT] Đang gửi tin nhắn:", content);
+
+    try {
+      const res = await sendUserMessage(userId, content);
+      console.log("📬 [CHAT] Phản hồi server đầy đủ:", res); // 🟢 Log full để check chatId
+
+      // 🟢 Lưu chatId nếu server trả về (check field đúng, ví dụ: res.data.chatId)
+      if (res?.data?.chatId) {
+        const newChatId = res.data.chatId;
+        setChatId(newChatId);
+        await saveChatId(newChatId); // 🟢 Lưu vào storage
+        console.log("💾 [CHAT] Đã lưu chatId mới:", newChatId);
+      }
+
+      if (res?.data) {
+        const msg = res.data;
+        const senderName = msg.sender?.fullName || "Loopus";
+        const senderId = msg.sender?.userId;
+        const isUser = senderId === userId;
+
+        const replyMsg = {
+          id: msg.messageId || Date.now().toString() + 1, // 🟢 Fallback nếu không có
+          sender: isUser ? "Bạn" : senderName,
+          text: msg.message,
+          time: new Date(msg.createdAt || Date.now()).toLocaleTimeString().slice(0, 5),
+        };
+
+        setMessages((prev) => [...prev, replyMsg]);
+      }
+    } catch (error) {
+      console.log("❌ [CHAT] Lỗi khi gửi tin nhắn:", error);
+      Alert.alert("Lỗi", "Không gửi được tin nhắn");
+    }
   };
 
   const renderMessage = ({ item }) => {
@@ -82,12 +167,20 @@ export default function ChatLoopusScreen() {
       </View>
 
       {/* Chat list */}
-      <FlatList
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderMessage}
-        contentContainerStyle={{ padding: 16 }}
-      />
+      {loading ? (
+        <ActivityIndicator
+          style={{ marginTop: 20 }}
+          size="large"
+          color="#2ECC71"
+        />
+      ) : (
+        <FlatList
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={renderMessage}
+          contentContainerStyle={{ padding: 16 }}
+        />
+      )}
 
       {/* Input */}
       <View style={styles.inputRow}>
