@@ -22,6 +22,7 @@ import { notificationService } from "../../services/notificationService";
 import { getUserId } from "../../services/storageService";
 import { groupService } from "../../services/groupService";
 import { expenseService } from "../../services/expenseService";
+import { Link } from "expo-router";
 
 export default function HomeScreen() {
   const router = useRouter();
