@@ -58,23 +58,80 @@ export default function AccountScreen() {
           {/* 2 nút QR + sửa thông tin */}
           <View style={styles.actionRow}>
             <TouchableOpacity
-  style={styles.actionButton}
-  onPress={() => router.push("/account/my-wallet")}
->
-  <Text style={styles.actionText}>Ví của tôi</Text>
-</TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
+              style={styles.actionButton}
+              onPress={() => router.push("/account/my-wallet")}
+            >
+              <Text style={styles.actionText}>Ví của tôi</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => router.push("edit-profile")}
+            >
               <Text style={styles.actionText}>Sửa thông tin</Text>
             </TouchableOpacity>
           </View>
         </View>
 
+        {/* Premium Banner - Nổi bật */}
+        <TouchableOpacity
+          style={{
+            backgroundColor: "#10b981",
+            marginHorizontal: 16,
+            marginTop: 20,
+            marginBottom: 16,
+            borderRadius: 16,
+            padding: 16,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            shadowColor: "#059669",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 8,
+            borderWidth: 2,
+            borderColor: "#34d399",
+          }}
+          onPress={() => router.push("/account/premium")}
+        >
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
+              <Text style={{ fontSize: 20, marginRight: 6 }}>✨</Text>
+              <Text style={{ 
+                fontSize: 18, 
+                fontWeight: "bold", 
+                color: "#fff",
+                letterSpacing: 0.5,
+              }}>
+                Loopus Premium
+              </Text>
+            </View>
+            <Text style={{ 
+              fontSize: 13, 
+              color: "#d1fae5",
+              marginTop: 2,
+            }}>
+              Trải nghiệm không giới hạn
+            </Text>
+          </View>
+          <View style={{
+            backgroundColor: "#fff",
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            borderRadius: 20,
+          }}>
+            <Text style={{ 
+              color: "#10b981", 
+              fontWeight: "bold",
+              fontSize: 13,
+            }}>
+              Nâng cấp →
+            </Text>
+          </View>
+        </TouchableOpacity>
+
         {/* Menu */}
         <View style={styles.menu}>
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuText}>Loopus Premium</Text>
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={styles.menuItem}
             onPress={() => router.push("/notification/help-center")} 

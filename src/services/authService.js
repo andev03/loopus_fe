@@ -92,6 +92,33 @@ export const findUserByEmail = async (email) => {
     };
   }
 };
+export const updateUserInformation = async (userData, token) => {
+  try {
+    const res = await axios.put(
+      `${API_URL}/update-information`,
+      userData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    console.log("Update profile response:", res.data);
+
+    return {
+      success: res.data?.status === 200,
+      message: res.data?.message || "Cập nhật thành công",
+      data: res.data?.data,
+    };
+  } catch (error) {
+    console.log("Update profile error:", error.response?.data || error.message);
+    return {
+      success: false,
+      message: error.response?.data?.message || "Cập nhật thất bại",
+    };
+  }
+};
 
 
 

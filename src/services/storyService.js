@@ -1,56 +1,61 @@
 import axios from "axios";
-import { getToken, getUserId } from "../services/storageService";
+import { getUser, getUserId } from "../services/storageService";
 
 const API_BASE_URL = "https://loopus.nguyenhoangan.site/api/stories";
 
 export const storyService = {
-  createStory: async (file, visibilityType = "followers", caption = "") => {
+  // 🟢 Tạo story
+  createStory: async (file, caption = "", visibilityType = "followers", albumId = null) => {
     try {
-      const token = await getToken();
       const userId = await getUserId();
+      const user = await getUser();
+      const token = user?.token;
+
+      if (!userId) throw new Error("Thiếu userId, không thể tạo story.");
 
       const formData = new FormData();
 
-      // ⚙️ Thêm file đúng format React Native
       formData.append("file", {
-        uri: file.uri,
+        uri: file.uri.startsWith("file://") ? file.uri : `file://${file.uri}`,
         type: file.type || "image/jpeg",
         name: file.name || "story.jpg",
       });
 
-      // ⚙️ Thêm request (stringify JSON)
-      formData.append(
-        "request",
-        JSON.stringify({
-          userId,
-          caption,
-          visibilityType,
-        })
-      );
+      const requestBody = { userId, caption, visibilityType, albumId };
+      formData.append("request", JSON.stringify(requestBody));
 
-      // ❗ Không set Content-Type thủ công để axios tự thêm boundary
+      console.log("📤 Gửi formData:", requestBody);
+
       const res = await axios.post(API_BASE_URL, formData, {
         headers: {
-          Authorization: `Bearer ${token}`,
           Accept: "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
         },
+        transformRequest: (data) => data, // giữ nguyên formData
       });
 
+      console.log("✅ [createStory] Thành công:", res.data);
       return res.data;
     } catch (err) {
-      console.error("❌ createStory error:", err.response?.data || err.message);
-      throw err.response?.data || err;
+      console.error("❌ [createStory] Gặp lỗi:", err.message);
+      if (err.response)
+        console.log("📨 Server trả:", err.response.status, err.response.data);
+      throw err;
     }
   },
 
   // 🔵 Lấy danh sách story feed của user
   getFeed: async (userId) => {
     try {
+      const user = await getUser();
+      const token = user?.token;
+
       const res = await axios.get(`${API_BASE_URL}/${userId}/feed`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          ...(token && { Authorization: `Bearer ${token}` }),
         },
       });
+
       return res.data;
     } catch (err) {
       console.error("❌ getFeed error:", err);
@@ -61,11 +66,15 @@ export const storyService = {
   // 🟣 Lấy danh sách story trong 1 album
   getStoriesByAlbum: async (albumId) => {
     try {
+      const user = await getUser();
+      const token = user?.token;
+
       const res = await axios.get(`${API_BASE_URL}/${albumId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          ...(token && { Authorization: `Bearer ${token}` }),
         },
       });
+
       return res.data;
     } catch (err) {
       console.error("❌ getStoriesByAlbum error:", err);
@@ -74,33 +83,40 @@ export const storyService = {
   },
 
   // 🟢 Lấy story của 1 user cụ thể
-getStoriesByUser: async (userId) => {
-  try {
-    const res = await axios.get(`${API_BASE_URL}/user/${userId}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    });
-    return res.data;
-  } catch (err) {
-    console.error("❌ getStoriesByUser error:", err);
-    throw err.response?.data || err;
-  }
-},
+  getStoriesByUser: async (userId) => {
+    try {
+      const user = await getUser();
+      const token = user?.token;
 
-// 🔴 Xóa 1 story
-deleteStory: async (storyId) => {
-  try {
-    const res = await axios.delete(`${API_BASE_URL}/${storyId}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    });
-    return res.data;
-  } catch (err) {
-    console.error("❌ deleteStory error:", err);
-    throw err.response?.data || err;
-  }
-},
+      const res = await axios.get(`${API_BASE_URL}/user/${userId}`, {
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
 
+      return res.data;
+    } catch (err) {
+      console.error("❌ getStoriesByUser error:", err);
+      throw err.response?.data || err;
+    }
+  },
+
+  // 🔴 Xóa 1 story
+  deleteStory: async (storyId) => {
+    try {
+      const user = await getUser();
+      const token = user?.token;
+
+      const res = await axios.delete(`${API_BASE_URL}/${storyId}`, {
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
+
+      return res.data;
+    } catch (err) {
+      console.error("❌ deleteStory error:", err);
+      throw err.response?.data || err;
+    }
+  },
 };

@@ -158,3 +158,38 @@ export const getTransactionDetailById = async (walletTransactionId) => {
     };
   }
 };
+/**
+ * 💳 Nạp tiền vào ví người dùng
+ * @param {number} amount - Số tiền cần nạp
+ */
+export const depositMoney = async (amount) => {
+  try {
+    const userId = await getUserId();
+    if (!userId) throw new Error("Không tìm thấy userId, vui lòng đăng nhập lại.");
+
+    const url = `${API_URL}/${userId}/deposit?amount=${amount}`;
+    console.log("🚀 Gọi API depositMoney:", url);
+
+    const res = await axios.post(url, null, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    console.log("💰 Kết quả API depositMoney:", res.data);
+
+    return {
+      success: true,
+      status: res.data?.status,
+      message: res.data?.message,
+      data: res.data?.data,
+    };
+  } catch (error) {
+    console.error("❌ depositMoney error:", error.response?.data || error.message);
+
+    return {
+      success: false,
+      message: error.response?.data?.message || "Không thể nạp tiền vào ví",
+    };
+  }
+};
