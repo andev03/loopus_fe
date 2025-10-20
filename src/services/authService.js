@@ -120,6 +120,44 @@ export const updateUserInformation = async (userData, token) => {
   }
 };
 
+export const updateUserAvatar = async (userId, file, token) => {
+  try {
+    const formData = new FormData();
+    formData.append("file", {
+      uri: file.uri, // 👈 URI của ảnh (React Native: từ ImagePicker hoặc Camera)
+      type: file.type || "image/jpeg", // 👈 MIME type, ví dụ: image/png
+      name: file.name || `avatar_${Date.now()}.jpg`,
+    });
+
+    const res = await axios.put(
+      `${API_URL}/update-avatar`,
+      formData,
+      {
+        params: { userId }, // 🔑 query param
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    console.log("Update avatar response:", res.data);
+
+    return {
+      success: res.data?.status === 200,
+      message: res.data?.message || "Cập nhật avatar thành công",
+      data: res.data?.data, // thường chứa URL mới của avatar
+    };
+  } catch (error) {
+    console.log("Update avatar error:", error.response?.data || error.message);
+    return {
+      success: false,
+      message: error.response?.data?.message || "Cập nhật avatar thất bại",
+    };
+  }
+};
+
+
 
 
 

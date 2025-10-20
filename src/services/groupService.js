@@ -71,18 +71,25 @@ export const groupService = {
     }
   },
 
-  leaveGroup: async (groupId, userId) => {
-    try {
-      const res = await axios.delete(`${API_URL}/leave-group`, {
-        data: { groupId, userId },      // 👈 DELETE phải để trong data
-        headers: { "Content-Type": "application/json" }
-      });
-      return { success: true, data: res.data };
-    } catch (error) {
-      console.error("❌ Lỗi rời nhóm:", error.response?.data || error.message);
-      return { success: false, error };
-    }
-  },
+  leaveGroup: async (groupId, userId, senderId = userId) => {
+  try {
+    const payload = {
+      senderId,
+      groupId,
+      userId,
+    };
+
+    const res = await axios.delete(`${API_URL}/leave-group`, {
+      data: payload,
+      headers: { "Content-Type": "application/json" },
+    });
+
+    return { success: true, data: res.data };
+  } catch (error) {
+    console.error("❌ Lỗi rời nhóm:", error.response?.data || error.message);
+    return { success: false, error };
+  }
+},
 
   viewMembers: async (groupId) => {
     try {

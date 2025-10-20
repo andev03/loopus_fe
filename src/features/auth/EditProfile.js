@@ -7,17 +7,20 @@ import {
   Alert,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { getUser, saveUser } from "../../services/storageService";
-import { updateUserInformation } from "../../services/authService";
+import { updateUserInformation, updateUserAvatar } from "../../services/authService";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 export default function EditProfile() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [user, setUser] = useState(null);
 
   const [firstName, setFirstName] = useState("");
@@ -25,59 +28,136 @@ export default function EditProfile() {
   const [email, setEmail] = useState("");
   const [dob, setDob] = useState("");
   const [bio, setBio] = useState("");
+  const [avatar, setAvatar] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
-    const loadUser = async () => {
-      const u = await getUser();
-      console.log("🧩 User từ storage:", u);
-      if (u) {
-        setUser(u);
-        setFirstName(u.firstName || "");
-        setLastName(u.lastName || "");
-        setEmail(u.email || u.username || "");
-        setDob(u.dob || "");
-        setBio(u.bio || "");
-      }
-    };
-    loadUser();
-  }, []);
+  const loadUser = async () => {
+    const u = await getUser();
+    console.log("🧩 User từ storage:", u);
 
-  const handleSave = async () => {
-    if (!firstName || !lastName) {
-      Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin");
-      return;
-    }
+    if (u) {
+      setUser(u);
 
-    setLoading(true);
+      // Nếu backend chỉ trả về fullName thì tách ra
+      const [first, ...lastParts] = (u.fullName || "").split(" ");
+      const last = lastParts.join(" ");
 
-    const userData = {
-      userId: user?.userId,
-      firstName,
-      lastName,
-      email,
-      dob,
-      bio: bio || "Chưa có giới thiệu",
-    };
-
-    console.log("📤 Sending update:", userData);
-
-    const res = await updateUserInformation(userData);
-    setLoading(false);
-
-    if (res.success) {
-      Alert.alert("Thành công", "Cập nhật thông tin thành công");
-      await saveUser({ ...user, firstName, lastName, dob, bio });
-      router.back();
-    } else {
-      console.log("❌ Update profile error:", res);
-      Alert.alert("Thất bại", res.message || "Cập nhật thất bại");
+      setFirstName(first || "");
+      setLastName(last || "");
+      setEmail(u.email || u.username || "");
+      setDob(u.dateOfBirth || "");
+      setBio(u.bio || "");
+      setAvatar(u.avatarUrl);
     }
   };
+  loadUser();
+}, []);
+
+
+ const handleSave = async () => {
+  if (!firstName || !lastName) {
+    Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin");
+    return;
+  }
+
+  setLoading(true);
+
+  const fullName = `${firstName} ${lastName}`.trim(); // 👈 Ghép fullName mới
+  const userData = {
+    userId: user?.userId,
+    firstName,
+    lastName,
+    email,
+    dob,
+    bio: bio || "Chưa có giới thiệu",
+    fullName, // 👈 Thêm fullName nếu backend cần
+  };
+
+  console.log("📤 Sending update:", userData);
+
+  const res = await updateUserInformation(userData, user?.token);
+  setLoading(false);
+
+  if (res.success) {
+    Alert.alert("Thành công", "Cập nhật thông tin thành công");
+    
+    // 👈 Lưu với fullName mới
+    await saveUser({ 
+      ...user, 
+      firstName, 
+      lastName, 
+      fullName, // 👈 Quan trọng: cập nhật fullName
+      dob, 
+      bio 
+    });
+    
+    router.push("/(tabs)/account");
+  } else {
+    console.log("❌ Update profile error:", res);
+    Alert.alert("Thất bại", res.message || "Cập nhật thất bại");
+  }
+};
+
+ const handlePickAvatar = async () => {
+  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (status !== "granted") {
+    Alert.alert("Quyền truy cập bị từ chối", "Cần cấp quyền truy cập ảnh để đổi avatar.");
+    return;
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    quality: 0.7,
+  });
+
+  if (!result.canceled) {
+    const file = result.assets[0];
+    console.log("🖼️ Chọn ảnh:", file);
+
+    // ✅ hiển thị preview ngay
+    setAvatar(file.uri); 
+    await handleUploadAvatar(file);
+  }
+};
+
+// 📤 Upload avatar lên server
+const handleUploadAvatar = async (file) => {
+  if (!user?.userId) {
+    Alert.alert("Lỗi", "Không xác định được userId.");
+    return;
+  }
+
+  setUploading(true);
+  const res = await updateUserAvatar(
+    user.userId,
+    {
+      uri: file.uri,
+      name: file.fileName || `avatar_${Date.now()}.jpg`,
+      type: file.mimeType || "image/jpeg",
+    },
+    user?.token
+  );
+  setUploading(false);
+
+  if (res.success) {
+    Alert.alert("Thành công", "Cập nhật avatar thành công");
+
+    // ✅ Nếu server trả URL string thì dùng, ngược lại vẫn giữ preview
+    const newAvatarUrl = typeof res.data === "string" ? res.data : file.uri;
+    setAvatar(newAvatarUrl);
+
+    // ✅ Lưu đúng định dạng (string)
+    await saveUser({ ...user, avatarUrl: newAvatarUrl });
+  } else {
+    Alert.alert("Thất bại", res.message || "Cập nhật avatar thất bại");
+  }
+};
+
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header với gradient effect */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={26} color="#fff" />
@@ -87,6 +167,23 @@ export default function EditProfile() {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <View style={styles.avatarContainer}>
+          <TouchableOpacity onPress={handlePickAvatar}>
+            <Image
+              source={{
+                uri: avatar || "https://ui-avatars.com/api/?name=User",
+              }}
+              style={styles.avatar}
+            />
+            {uploading && (
+              <View style={styles.overlay}>
+                <ActivityIndicator color="#fff" size="small" />
+              </View>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.avatarLabel}>Chạm để đổi ảnh đại diện</Text>
+        </View>
+
         <View style={styles.formContainer}>
           {/* Họ */}
           <View style={styles.inputGroup}>
@@ -194,110 +291,70 @@ export default function EditProfile() {
   );
 }
 
+/* --- Thêm style avatar --- */
 const styles = {
-  container: {
-    flex: 1,
-    backgroundColor: "#f0fdf4",
-  },
+  container: { flex: 1, backgroundColor: "#fff" },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
     backgroundColor: "#10b981",
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: "#10b981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#fff",
-    letterSpacing: 0.5,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  formContainer: {
-    padding: 20,
-    paddingTop: 24,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  labelContainer: {
-    flexDirection: "row",
+  backButton: { padding: 4 },
+  headerTitle: { color: "#fff", fontSize: 18, fontWeight: "600" },
+  scrollView: { paddingHorizontal: 16 },
+  avatarContainer: {
     alignItems: "center",
-    marginBottom: 8,
-    gap: 6,
+    marginTop: 24,
   },
-  label: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#047857",
+  avatar: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    borderWidth: 3,
+    borderColor: "#10b981",
   },
-  input: {
-    backgroundColor: "#fff",
-    borderWidth: 2,
-    borderColor: "#d1fae5",
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    color: "#1f2937",
-    shadowColor: "#10b981",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+  overlay: {
+    position: "absolute",
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  inputDisabled: {
-    backgroundColor: "#f3f4f6",
-    borderColor: "#e5e7eb",
+  avatarLabel: {
+    marginTop: 8,
     color: "#6b7280",
+    fontSize: 13,
   },
-  textArea: {
-    height: 100,
-    textAlignVertical: "top",
-    paddingTop: 14,
+  formContainer: { marginTop: 20 },
+  inputGroup: { marginBottom: 16 },
+  labelContainer: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
+  label: { marginLeft: 6, color: "#374151", fontWeight: "500" },
+  input: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: "#111827",
   },
-  dateText: {
-    fontSize: 16,
-    color: "#1f2937",
-  },
-  datePlaceholder: {
-    fontSize: 16,
-    color: "#9ca3af",
-  },
+  inputDisabled: { backgroundColor: "#f3f4f6", color: "#9ca3af" },
+  textArea: { height: 80, textAlignVertical: "top" },
+  dateText: { color: "#111827", fontSize: 15 },
+  datePlaceholder: { color: "#9ca3af", fontSize: 15 },
   button: {
     backgroundColor: "#10b981",
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 14,
+    borderRadius: 12,
+    paddingVertical: 14,
     alignItems: "center",
-    marginTop: 12,
-    shadowColor: "#10b981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    marginTop: 10,
+    marginBottom: 40,
   },
-  buttonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 17,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-  },
+  buttonContent: { flexDirection: "row", alignItems: "center" },
+  buttonText: { color: "#fff", fontSize: 16, marginLeft: 6, fontWeight: "600" },
 };

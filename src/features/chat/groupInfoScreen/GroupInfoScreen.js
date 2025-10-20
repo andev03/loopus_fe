@@ -294,16 +294,6 @@ export default function GroupInfoScreen() {
           <Ionicons name="chevron-forward" size={20} color="#ccc" />
         </TouchableOpacity>
 
-        {/* Mã QR */}
-        <TouchableOpacity
-          style={styles.option}
-          onPress={() => router.push("/chat/group-qr")}
-        >
-          <Ionicons name="qr-code" size={20} color="#666" />
-          <Text style={styles.optionText}>Mã QR & Link Nhóm</Text>
-          <Ionicons name="chevron-forward" size={20} color="#ccc" />
-        </TouchableOpacity>
-
         {/* Nếu là chủ nhóm thì hiển thị nút giải tán */}
         {group.createdBy === currentUserId && (
           <TouchableOpacity

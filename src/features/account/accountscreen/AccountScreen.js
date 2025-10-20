@@ -18,17 +18,21 @@ import {
 
 // ✅ Import ảnh avatar mặc định trong assets
 import DefaultAvatar from "../../../assets/images/default-avatar.jpg";
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function AccountScreen() {
   const [user, setUser] = useState(null);
+  
 
-  useEffect(() => {
-    const loadUser = async () => {
-      const u = await getUser();
-      setUser(u);
-    };
-    loadUser();
-  }, []);
+ useFocusEffect(
+    React.useCallback(() => {
+      const loadUser = async () => {
+        const u = await getUser();
+        setUser(u);
+      };
+      loadUser();
+    }, [])
+  );
 
   const handleLogout = async () => {
     Alert.alert("Xác nhận", "Bạn có chắc chắn muốn đăng xuất?", [
@@ -48,29 +52,46 @@ export default function AccountScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {/* Avatar */}
-        <View style={styles.header}>
-          <Image
-            source={user?.avatarUrl ? { uri: user.avatarUrl } : DefaultAvatar}
-            style={styles.avatar}
-          />
+       {/* Avatar */}
+<View style={styles.header}>
+  <Image
+    source={user?.avatarUrl ? { uri: user.avatarUrl } : DefaultAvatar}
+    style={styles.avatar}
+  />
 
-          {/* 2 nút QR + sửa thông tin */}
-          <View style={styles.actionRow}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => router.push("/account/my-wallet")}
-            >
-              <Text style={styles.actionText}>Ví của tôi</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => router.push("edit-profile")}
-            >
-              <Text style={styles.actionText}>Sửa thông tin</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+  {/* 👋 Thông tin người dùng */}
+  <View style={{ alignItems: "center", marginTop: 12 }}>
+    <Text style={{ fontSize: 18, fontWeight: "600", color: "#111" }}>
+      Xin chào, {user?.fullName || "Người dùng"} 👋
+    </Text>
+    {user?.bio ? (
+      <Text style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
+        {user.bio}
+      </Text>
+    ) : (
+      <Text style={{ fontSize: 14, color: "#9ca3af", marginTop: 4 }}>
+        Hãy thêm giới thiệu về bạn 🌱
+      </Text>
+    )}
+  </View>
+
+  {/* 2 nút QR + sửa thông tin */}
+  <View style={styles.actionRow}>
+    <TouchableOpacity
+      style={styles.actionButton}
+      onPress={() => router.push("/account/my-wallet")}
+    >
+      <Text style={styles.actionText}>Ví của tôi</Text>
+    </TouchableOpacity>
+    <TouchableOpacity
+      style={styles.actionButton}
+      onPress={() => router.push("edit-profile")}
+    >
+      <Text style={styles.actionText}>Sửa thông tin</Text>
+    </TouchableOpacity>
+  </View>
+</View>
+
 
         {/* Premium Banner - Nổi bật */}
         <TouchableOpacity
