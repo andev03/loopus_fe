@@ -12,7 +12,6 @@ import { router } from "expo-router";
 import styles from "../accountScreen/AccountScreen.styles";
 import {
   clearUser,
-  clearToken,
   getUser,
 } from "../../../services/storageService";
 import DefaultAvatar from "../../../assets/images/default-avatar.jpg";
@@ -39,7 +38,6 @@ export default function AccountScreen() {
         style: "destructive",
         onPress: async () => {
           await clearUser();
-          await clearToken();
           router.replace("/login");
         },
       },

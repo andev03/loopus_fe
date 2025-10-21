@@ -52,6 +52,16 @@ export default function VerifyOtpScreen() {
       <TouchableOpacity style={styles.button} onPress={handleVerify}>
         <Text style={styles.buttonText}>Xác minh</Text>
       </TouchableOpacity>
+
+      {/* 🔙 Nút quay lại đăng nhập */}
+      <TouchableOpacity
+        style={[styles.button, styles.backButton]}
+        onPress={() => router.push("/login")}
+      >
+        <Text style={[styles.buttonText, styles.backButtonText]}>
+          Quay lại đăng nhập
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -72,11 +82,24 @@ const styles = StyleSheet.create({
     padding: 12,
     marginVertical: 12,
   },
-  button: { backgroundColor: "#2ECC71", padding: 14, borderRadius: 8 },
+  button: {
+    backgroundColor: "#2ECC71",
+    padding: 14,
+    borderRadius: 8,
+    marginTop: 8,
+  },
   buttonText: {
     color: "#fff",
     fontSize: 16,
     textAlign: "center",
     fontWeight: "600",
+  },
+  backButton: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#2ECC71",
+  },
+  backButtonText: {
+    color: "#2ECC71",
   },
 });

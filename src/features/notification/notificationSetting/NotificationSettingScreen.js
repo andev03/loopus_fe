@@ -1,56 +1,141 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   ScrollView,
   Switch,
   TouchableOpacity,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import styles from "./NotificationSettingScreen.styles";
 
+import { settingService } from "../../../services/settingService"; 
+import { getUserId } from "../../../services/storageService";
+
 export default function NotificationSettingsScreen() {
   const navigation = useNavigation();
 
-  // state cho các switch
-  const [settings, setSettings] = useState({
-    sound: true,
-    device: true,
-    group: true,
-    reminder: true,
-    security: true,
-    promo: true,
-    voucher: true,
-    ads: false,
-    friends: true,
-    changeAdmin: true,
-    survey: true,
-  });
+  const [loading, setLoading] = useState(true);
+  const [allSettings, setAllSettings] = useState([]); // danh sách setting mô tả
+  const [userSettings, setUserSettings] = useState([]); // danh sách user setting (id, type)
+  const [settingsMap, setSettingsMap] = useState({}); // map type -> boolean
 
-  // Toggle 1 setting
-  const toggleSwitch = (key) => {
-    setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
+  // 🟢 Lấy data khi load
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        setLoading(true);
+        const userId = await getUserId();
+        if (!userId) {
+          Alert.alert("Lỗi", "Không tìm thấy thông tin người dùng.");
+          return;
+        }
+
+        // Gọi 2 API song song
+        const [allRes, userRes] = await Promise.all([
+          settingService.getAllSettings(),
+          settingService.getSettingsByUserId(userId),
+        ]);
+
+        if (!allRes.success || !userRes.success) {
+          Alert.alert("Lỗi", "Không thể tải cài đặt thông báo.");
+          return;
+        }
+
+        setAllSettings(allRes.data);
+        setUserSettings(userRes.data);
+
+        // Tạo map type -> enabled
+        const map = {};
+        allRes.data.forEach((setting) => {
+          const userSetting = userRes.data.find(
+            (u) => u.type === setting.type
+          );
+          map[setting.type] = userSetting ? userSetting.enabled ?? true : true;
+        });
+
+        setSettingsMap(map);
+      } catch (error) {
+        console.error("❌ Lỗi fetchSettings:", error);
+        Alert.alert("Lỗi", "Không thể tải dữ liệu cài đặt.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSettings();
+  }, []);
+
+  // 🟢 Toggle một setting
+  const toggleSwitch = async (type) => {
+    try {
+      const newEnabled = !settingsMap[type];
+      setSettingsMap((prev) => ({ ...prev, [type]: newEnabled }));
+
+      // Tìm ID của setting tương ứng
+      const userSetting = userSettings.find((u) => u.type === type);
+      if (!userSetting) return;
+
+      const payload = [
+        {
+          settingId: userSetting.id,
+          enabled: newEnabled,
+        },
+      ];
+
+      const res = await settingService.updateSettingsByUserId(payload);
+      if (!res.success) {
+        Alert.alert("Lỗi", "Không thể cập nhật cài đặt.");
+      }
+    } catch (error) {
+      console.error("❌ toggleSwitch error:", error);
+      Alert.alert("Lỗi", "Không thể cập nhật trạng thái.");
+    }
   };
 
-  // 👉 Hàm tắt tất cả
-  const turnOffAll = () => {
-    const allFalse = Object.keys(settings).reduce((acc, key) => {
-      acc[key] = false;
-      return acc;
-    }, {});
-    setSettings(allFalse);
+  // 🟢 Tắt tất cả
+  const turnOffAll = async () => {
+    await updateAllSettings(false);
   };
 
-  // 👉 Hàm bật tất cả
-  const turnOnAll = () => {
-    const allTrue = Object.keys(settings).reduce((acc, key) => {
-      acc[key] = true;
-      return acc;
-    }, {});
-    setSettings(allTrue);
+  // 🟢 Bật tất cả
+  const turnOnAll = async () => {
+    await updateAllSettings(true);
   };
+
+  // 🟢 Hàm update tất cả setting
+  const updateAllSettings = async (enabled) => {
+    try {
+      const payload = userSettings.map((s) => ({
+        settingId: s.id,
+        enabled,
+      }));
+      setSettingsMap((prev) => {
+        const newMap = {};
+        Object.keys(prev).forEach((k) => (newMap[k] = enabled));
+        return newMap;
+      });
+      const res = await settingService.updateSettingsByUserId(payload);
+      if (!res.success) {
+        Alert.alert("Lỗi", "Không thể cập nhật tất cả cài đặt.");
+      }
+    } catch (error) {
+      console.error("❌ updateAllSettings:", error);
+      Alert.alert("Lỗi", "Không thể thay đổi tất cả cài đặt.");
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#2ECC71" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -63,104 +148,25 @@ export default function NotificationSettingsScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView
-  contentContainerStyle={{ paddingBottom: 40 }}
-  showsVerticalScrollIndicator={false}
->
-        {/* Cài đặt chung */}
-        <View style={styles.itemRow}>
-          <Text style={styles.itemTitle}>Âm thông báo</Text>
-          <Switch
-            value={settings.sound}
-            onValueChange={() => toggleSwitch("sound")}
-            trackColor={{ false: "#ccc", true: "#2ECC71" }}
-            thumbColor="#fff"
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+        {allSettings.map((item) => (
+          <SettingRow
+            key={item.type}
+            icon={getIconByType(item.type)}
+            title={item.description}
+            value={settingsMap[item.type]}
+            onToggle={() => toggleSwitch(item.type)}
           />
-        </View>
-        <View style={styles.itemRow}>
-          <Text style={styles.itemTitle}>Nhận thông báo trên thiết bị</Text>
-          <Switch
-            value={settings.device}
-            onValueChange={() => toggleSwitch("device")}
-            trackColor={{ false: "#ccc", true: "#2ECC71" }}
-            thumbColor="#fff"
-          />
-        </View>
+        ))}
 
-        {/* Nhóm quan trọng */}
-        <Text style={styles.section}>Thông báo quan trọng</Text>
-        <SettingRow
-          icon="card-outline"
-          title="Giao dịch nhóm"
-          desc="Cập nhật khi có thành viên thêm, chỉnh sửa hoặc xóa chi tiêu"
-          value={settings.group}
-          onToggle={() => toggleSwitch("group")}
-        />
-        <SettingRow
-          icon="alarm-outline"
-          title="Nhắc nhở"
-          desc="Khi đến hạn trả nợ hoặc hoàn thành nhắc nhở giao dịch"
-          value={settings.reminder}
-          onToggle={() => toggleSwitch("reminder")}
-        />
-        <SettingRow
-          icon="shield-checkmark-outline"
-          title="Cảnh báo bảo mật"
-          desc="Thông báo khi phát hiện bất thường, yêu cầu xác thực bảo mật"
-          value={settings.security}
-          onToggle={() => toggleSwitch("security")}
-        />
-
-        {/* Nhóm ưu đãi */}
-        <Text style={styles.section}>Thông báo ưu đãi</Text>
-        <SettingRow
-          icon="gift-outline"
-          title="Ưu đãi dịch vụ"
-          desc="Ưu đãi dịch vụ bạn đang sử dụng"
-          value={settings.promo}
-          onToggle={() => toggleSwitch("promo")}
-        />
-        <SettingRow
-          icon="pricetag-outline"
-          title="Voucher & mã giảm giá"
-          desc="Cập nhật voucher ưu đãi nhóm có thể áp dụng trong dịch vụ liên kết"
-          value={settings.voucher}
-          onToggle={() => toggleSwitch("voucher")}
-        />
-        <SettingRow
-          icon="megaphone-outline"
-          title="Quảng cáo"
-          desc="Các thông báo quảng cáo khác"
-          value={settings.ads}
-          onToggle={() => toggleSwitch("ads")}
-        />
-
-        {/* Nhóm tương tác */}
-        <Text style={styles.section}>Thông báo tương tác</Text>
-        <SettingRow
-          icon="people-outline"
-          title="Bạn bè & nhóm"
-          desc="Tương tác với bạn bè và các nhóm của bạn"
-          value={settings.friends}
-          onToggle={() => toggleSwitch("friends")}
-        />
-        <SettingRow
-          icon="swap-horizontal-outline"
-          title="Thay đổi nhóm"
-          desc="Khi nhóm đổi admin, đại diện, thành viên"
-          value={settings.changeAdmin}
-          onToggle={() => toggleSwitch("changeAdmin")}
-        />
-        <SettingRow
-          icon="chatbox-ellipses-outline"
-          title="Khảo sát & phản hồi"
-          desc="Khảo sát, phản hồi dịch vụ hoặc trải nghiệm"
-          value={settings.survey}
-          onToggle={() => toggleSwitch("survey")}
-        />
-
-        {/* Footer: 2 nút */}
-        <View style={{ flexDirection: "row", justifyContent: "space-around", marginVertical: 20 }}>
+        {/* Footer */}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-around",
+            marginVertical: 20,
+          }}
+        >
           <TouchableOpacity style={styles.footerBtn} onPress={turnOffAll}>
             <Text style={styles.footerText}>Tắt tất cả</Text>
           </TouchableOpacity>
@@ -173,8 +179,8 @@ export default function NotificationSettingsScreen() {
   );
 }
 
-// Component cho từng dòng setting
-function SettingRow({ icon, title, desc, value, onToggle }) {
+// 🟢 Component cho từng dòng
+function SettingRow({ icon, title, value, onToggle }) {
   return (
     <View style={styles.settingRow}>
       <Ionicons
@@ -183,10 +189,7 @@ function SettingRow({ icon, title, desc, value, onToggle }) {
         color="#2ECC71"
         style={{ marginRight: 12 }}
       />
-      <View style={{ flex: 1 }}>
-        <Text style={styles.settingTitle}>{title}</Text>
-        <Text style={styles.settingDesc}>{desc}</Text>
-      </View>
+      <Text style={styles.settingTitle}>{title}</Text>
       <Switch
         value={value}
         onValueChange={onToggle}
@@ -195,4 +198,22 @@ function SettingRow({ icon, title, desc, value, onToggle }) {
       />
     </View>
   );
+}
+
+// 🟢 Map icon theo type
+function getIconByType(type) {
+  const map = {
+    SOUND: "volume-high-outline",
+    DEVICE_NOTIFICATION: "phone-portrait-outline",
+    GROUP_TRANSACTION: "card-outline",
+    REMINDER: "alarm-outline",
+    SECURITY_ALERT: "shield-checkmark-outline",
+    SERVICE_PROMO: "gift-outline",
+    VOUCHER: "pricetag-outline",
+    ADVERTISING: "megaphone-outline",
+    FRIENDS_AND_GROUPS: "people-outline",
+    GROUP_CHANGE: "swap-horizontal-outline",
+    SURVEY_FEEDBACK: "chatbox-ellipses-outline",
+  };
+  return map[type] || "notifications-outline";
 }
