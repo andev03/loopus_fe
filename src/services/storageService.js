@@ -1,10 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const USER_KEY = "userInfo";
-const CHAT_KEY = "chatId"; // 🟢 Key mới cho chatId
+const CHAT_KEY = "chatId"; 
 
-// 📌 Phần token (comment out vì bạn không dùng)
- /*
+
 const TOKEN_KEY = "userToken";
 
 export const saveToken = async (token) => {
@@ -31,7 +30,7 @@ export const clearToken = async () => {
     console.error("Error clearing token:", error);
   }
 };
-*/
+
 
 // ✅ Lưu user info
 export const saveUser = async (user) => {

@@ -13,6 +13,7 @@ import {
     Platform,
     ScrollView,
     ActionSheetIOS,
+    FlatList,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,18 +23,16 @@ import {
     listReactions,
     addReaction,
     removeReaction,
+    updateReaction,
     listComments,
     addComment,
-    deleteComment,
     getAlbumStories,
-    updateComment,
-    updateReaction,
     deleteStory,
 } from "../../services/storyService";
 import { getUserId } from "../../services/storageService";
 import styles from "./StoryDetailScreen.styles";
 import { toPlainText } from "../../utils/utils";
-
+import { Modalize } from "react-native-modalize";
 
 export default function StoryDetailScreen() {
     const insets = useSafeAreaInsets();
@@ -53,8 +52,7 @@ export default function StoryDetailScreen() {
     const [commentText, setCommentText] = useState("");
     const [showReactionPicker, setShowReactionPicker] = useState(false);
     const [myReaction, setMyReaction] = useState(null);
-    const [editingCommentId, setEditingCommentId] = useState(null); // ✅ Track editing state
-    const [editingCommentText, setEditingCommentText] = useState(""); // ✅ Text for editing
+    const modalizeRef = useRef(null);
 
     // Navigation state
     const [allStories, setAllStories] = useState([]);
@@ -203,7 +201,10 @@ export default function StoryDetailScreen() {
                     reactionId: myReaction.id || myReaction.reactionId,
                 });
                 setMyReaction(null);
-                setReactions(reactions.filter((r) => r.id !== myReaction.id && r.reactionId !== myReaction.reactionId));
+                // ✅ Fix: Filter by user để đảm bảo chỉ xóa của current user
+                setReactions(reactions.filter((r) => 
+                    r?.user?.userId?.toString() !== currentUserId?.toString()
+                ));
                 setShowReactionPicker(false);
                 return;
             }
@@ -218,6 +219,7 @@ export default function StoryDetailScreen() {
                     });
                     const updated = upd?.data || upd || { ...myReaction, emoji };
                     setMyReaction(updated);
+                    // ✅ Update reactions list
                     setReactions(
                         reactions.map((r) =>
                             (r.id || r.reactionId) === (myReaction.id || myReaction.reactionId)
@@ -226,7 +228,8 @@ export default function StoryDetailScreen() {
                         )
                     );
                 } catch (e) {
-                    // Fallback: remove + add
+                    console.log("🔄 Update failed, fallback to remove + add");
+                    // Fallback: remove old + add new (ẩn emoji cũ)
                     await removeReaction({
                         storyId: currentStoryId,
                         reactionId: myReaction.id || myReaction.reactionId,
@@ -238,8 +241,11 @@ export default function StoryDetailScreen() {
                     });
                     const newReaction = res.data || res;
                     setMyReaction(newReaction);
+                    // ✅ Fix: Filter tất cả reactions của current user, chỉ giữ newReaction
                     setReactions([
-                        ...reactions.filter((r) => r.userId !== currentUserId),
+                        ...reactions.filter((r) => 
+                            r?.user?.userId?.toString() !== currentUserId?.toString()
+                        ),
                         newReaction,
                     ]);
                 }
@@ -252,8 +258,11 @@ export default function StoryDetailScreen() {
                 });
                 const newReaction = res.data || res;
                 setMyReaction(newReaction);
+                // ✅ Fix: Filter tất cả reactions của current user (nếu có), thêm new
                 setReactions([
-                    ...reactions.filter((r) => r.userId !== currentUserId),
+                    ...reactions.filter((r) => 
+                        r?.user?.userId?.toString() !== currentUserId?.toString()
+                    ),
                     newReaction,
                 ]);
             }
@@ -289,65 +298,6 @@ export default function StoryDetailScreen() {
             console.error("❌ Lỗi comment:", error);
             Alert.alert("Lỗi", "Không thể gửi bình luận");
         }
-    };
-
-    // ✅ Start editing a comment
-    const handleEditComment = (comment) => {
-        setEditingCommentId(comment.id || comment.commentId);
-        setEditingCommentText(toPlainText(comment.content ?? comment.text ?? ""));
-    };
-
-    // ✅ Save edited comment
-    const handleSaveEditComment = async (commentId) => {
-        if (!editingCommentText.trim()) {
-            Alert.alert("Lỗi", "Nội dung bình luận không được để trống");
-            return;
-        }
-
-        try {
-            await updateComment(commentId, editingCommentText.trim());
-
-            setComments(comments.map((c) =>
-                (c.id || c.commentId) === commentId
-                    ? { ...c, content: editingCommentText.trim() } // keep plain string locally
-                    : c
-            ));
-
-            setEditingCommentId(null);
-            setEditingCommentText("");
-        } catch (error) {
-            console.error("❌ Lỗi cập nhật comment:", error);
-            Alert.alert("Lỗi", "Không thể cập nhật bình luận");
-        }
-    };
-
-    // ✅ Cancel editing
-    const handleCancelEdit = () => {
-        setEditingCommentId(null);
-        setEditingCommentText("");
-    };
-
-    const handleDeleteComment = async (commentId) => {
-        Alert.alert(
-            "Xóa bình luận",
-            "Bạn có chắc muốn xóa bình luận này?",
-            [
-                { text: "Hủy", style: "cancel" },
-                {
-                    text: "Xóa",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            await deleteComment(currentStoryId, commentId);
-                            setComments(comments.filter((c) => (c.id || c.commentId) !== commentId));
-                        } catch (error) {
-                            console.error("❌ Lỗi xóa comment:", error);
-                            Alert.alert("Lỗi", "Không thể xóa bình luận");
-                        }
-                    },
-                },
-            ]
-        );
     };
 
     // Delete story
@@ -392,50 +342,13 @@ export default function StoryDetailScreen() {
         );
     };
 
-    // ✅ Three-dot menu for own comment
-    const handleMorePress = (comment) => {
-        const cid = comment.id || comment.commentId;
-
-        if (Platform.OS === "ios") {
-            ActionSheetIOS.showActionSheetWithOptions(
-                {
-                    options: ["Hủy", "Chỉnh sửa", "Xóa"],
-                    cancelButtonIndex: 0,
-                    destructiveButtonIndex: 2,
-                    userInterfaceStyle: "dark",
-                },
-                (buttonIndex) => {
-                    if (buttonIndex === 1) {
-                        handleEditComment(comment);
-                    } else if (buttonIndex === 2) {
-                        handleDeleteComment(cid);
-                    }
-                }
-            );
-        } else {
-            Alert.alert(
-                "Tùy chọn bình luận",
-                undefined,
-                [
-                    { text: "Chỉnh sửa", onPress: () => handleEditComment(comment) },
-                    { text: "Xóa", style: "destructive", onPress: () => handleDeleteComment(cid) },
-                    { text: "Hủy", style: "cancel" },
-                ]
-            );
-        }
-    };
-
-    const renderComment = ({ item }) => {
-        // Robust owner check
-        const uid = currentUserId?.toString();
-        const isMyComment =
-            // item.userId?.toString?.() === uid ||
-            item.user?.userId == currentUserId;
-
-        const isEditing = (item.id || item.commentId) === editingCommentId;
+    const renderComment = ({ item, index }) => {
+        // ✅ Ensure strings for text content to avoid rendering issues
+        const username = item.user?.fullName || item.user?.username || "User";
+        const content = String(item.content || '');
 
         return (
-            <View style={styles.commentItem} key={item.id || item.commentId}>
+            <View style={styles.commentItem} key={item.id || item.commentId || index}>
                 <Image
                     source={{
                         uri: item.user?.avatarUrl || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
@@ -444,51 +357,10 @@ export default function StoryDetailScreen() {
                 />
                 <View style={styles.commentContent}>
                     <Text style={styles.commentUsername}>
-                        {item.user?.fullName || item.user?.username || "User"}
+                        {username}
                     </Text>
-
-                    {/* ✅ Show TextInput when editing */}
-                    {isEditing ? (
-                        <View style={styles.editCommentContainer}>
-                            <TextInput
-                                style={styles.editCommentInput}
-                                value={editingCommentText}
-                                onChangeText={setEditingCommentText}
-                                multiline
-                                autoFocus
-                            />
-                            <View style={styles.editCommentActions}>
-                                <TouchableOpacity
-                                    onPress={handleCancelEdit}
-                                    style={styles.editCancelBtn}
-                                >
-                                    <Text style={styles.editCancelText}>Hủy</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => handleSaveEditComment(item.id || item.commentId)}
-                                    style={styles.editSaveBtn}
-                                >
-                                    <Text style={styles.editSaveText}>Lưu</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    ) : (
-                        <Text style={styles.commentText}>{item.content}</Text>
-                    )}
+                    <Text style={styles.commentText}>{content}</Text>
                 </View>
-
-
-                {/* ✅ Three-dot overflow for own comments */}
-                {isMyComment && !isEditing && (
-                    <View style={styles.commentActions}>
-                        <TouchableOpacity
-                            onPress={() => handleMorePress(item)}
-                            style={styles.editCommentBtn}
-                        >
-                            <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
-                        </TouchableOpacity>
-                    </View>
-                )}
             </View>
         );
     };
@@ -588,23 +460,7 @@ export default function StoryDetailScreen() {
                     </View>
                 )}
 
-                {/* Comments list */}
-                <View style={styles.commentsSection}>
-                    <ScrollView
-                        showsVerticalScrollIndicator={false}
-                        keyboardShouldPersistTaps="handled"
-                    >
-                        {comments.length === 0 ? (
-                            <Text style={styles.emptyComment}>Chưa có bình luận nào</Text>
-                        ) : (
-                            comments.map((item, index) => (
-                                <View key={item.id?.toString() || item.commentId?.toString() || `comment-${index}`}>
-                                    {renderComment({ item })}
-                                </View>
-                            ))
-                        )}
-                    </ScrollView>
-                </View>
+              
 
                 {/* Reaction picker */}
                 {showReactionPicker && (
@@ -620,6 +476,24 @@ export default function StoryDetailScreen() {
                         ))}
                     </View>
                 )}
+
+                {/* Nút mở bình luận (Instagram style) */}
+                <TouchableOpacity
+                    style={{
+                        position: "absolute",
+                        bottom: 90,
+                        right: 20,
+                        flexDirection: "row",
+                        alignItems: "center",
+                    }}
+                    onPress={() => modalizeRef.current?.open()}
+                >
+                    <Ionicons name="chatbubble-outline" size={22} color="#fff" />
+                    <Text style={{ color: "#fff", marginLeft: 6 }}>
+                        {comments.length} bình luận
+                    </Text>
+                </TouchableOpacity>
+
 
                 {/* Bottom actions */}
                 <View style={styles.bottomActions}>
@@ -654,6 +528,75 @@ export default function StoryDetailScreen() {
                         </TouchableOpacity>
                     </View>
                 </View>
+                <Modalize
+                    ref={modalizeRef}
+                    adjustToContentHeight
+                    modalStyle={{
+                        backgroundColor: "#1a1a1a",
+                        borderTopLeftRadius: 16,
+                        borderTopRightRadius: 16,
+                        padding: 16,
+                    }}
+                    handleStyle={{ backgroundColor: "#666" }}
+                >
+                    <Text style={{ color: "#fff", fontSize: 16, fontWeight: "600", marginBottom: 10 }}>
+                        Bình luận ({comments.length})
+                    </Text>
+
+                    <ScrollView  // ✅ Quay lại ScrollView để tránh nesting với Modalize
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                        style={{ maxHeight: 300, marginBottom: 10 }}  // Giữ maxHeight để không overflow
+                    >
+                        {comments.length === 0 ? (
+                            <Text style={{ color: "#aaa", textAlign: "center", marginVertical: 10 }}>
+                                Chưa có bình luận nào
+                            </Text>
+                        ) : (
+                            comments.map((item, index) => renderComment({ item, index }))  // ✅ Pass index for safe key
+                        )}
+                    </ScrollView>
+
+                    {/* Ô nhập bình luận (giữ nguyên) */}
+                    <View
+                        style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            borderTopWidth: 1,
+                            borderTopColor: "#333",
+                            paddingTop: 10,
+                            marginTop: 10,
+                        }}
+                    >
+                        <TextInput
+                            style={{
+                                flex: 1,
+                                color: "#fff",
+                                borderWidth: 1,
+                                borderColor: "#444",
+                                borderRadius: 20,
+                                paddingHorizontal: 14,
+                                paddingVertical: 6,
+                            }}
+                            placeholder="Viết bình luận..."
+                            placeholderTextColor="#888"
+                            value={commentText}
+                            onChangeText={setCommentText}
+                        />
+                        <TouchableOpacity
+                            onPress={handleSendComment}
+                            disabled={!commentText.trim()}
+                            style={{ marginLeft: 8 }}
+                        >
+                            <Ionicons
+                                name="send"
+                                size={22}
+                                color={commentText.trim() ? "#2ECC71" : "#777"}
+                            />
+                        </TouchableOpacity>
+                    </View>
+                </Modalize>
+
             </KeyboardAvoidingView>
         </SafeAreaView>
     );

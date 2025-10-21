@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   TextInput,
   Alert,
+  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -23,6 +24,8 @@ import { getUserId, getUser } from "../../services/storageService";
 import { groupService } from "../../services/groupService";
 import { expenseService } from "../../services/expenseService";
 import { Link } from "expo-router";
+
+const { width: screenWidth } = Dimensions.get("window");
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -50,6 +53,8 @@ export default function HomeScreen() {
 
   // ✅ NEW: States cho groups thật ở home
   const [recentGroups, setRecentGroups] = useState([]);
+  const [filteredRecentGroups, setFilteredRecentGroups] = useState([]); // ✅ Filtered cho search groups home
+  const [searchGroupsQuery, setSearchGroupsQuery] = useState(""); // ✅ Search query cho groups home
   const [loadingRecentGroups, setLoadingRecentGroups] = useState(false);
 
   // 🌀 Animation cho chuông
@@ -113,7 +118,7 @@ export default function HomeScreen() {
     checkNotifications();
   }, []);
 
-  // ✅ Fetch recent groups thật cho home section
+  // ✅ Fetch recent groups thật cho home section (tất cả groups, không slice)
   useEffect(() => {
     const fetchRecentGroups = async () => {
       try {
@@ -123,13 +128,16 @@ export default function HomeScreen() {
         const res = await groupService.getGroups(userId);
         if (res.success && res.data?.data) {
           const allGroups = res.data.data;
-          setRecentGroups(allGroups.slice(0, 4)); // Lấy 4 groups đầu tiên
+          setRecentGroups(allGroups); // Lấy tất cả groups
+          setFilteredRecentGroups(allGroups); // Set filtered ban đầu
         } else {
           setRecentGroups([]);
+          setFilteredRecentGroups([]);
         }
       } catch (err) {
         console.error("❌ Lỗi khi fetch recent groups:", err);
         setRecentGroups([]);
+        setFilteredRecentGroups([]);
       } finally {
         setLoadingRecentGroups(false);
       }
@@ -161,6 +169,18 @@ export default function HomeScreen() {
       setFilteredDebtList(filtered);
     }
   }, [searchDebtQuery, debtList]);
+
+  // ✅ Filter recent groups theo search home
+  useEffect(() => {
+    if (searchGroupsQuery === "") {
+      setFilteredRecentGroups(recentGroups);
+    } else {
+      const filtered = recentGroups.filter((group) =>
+        (group.groupName || group.name || "").toLowerCase().includes(searchGroupsQuery.toLowerCase())
+      );
+      setFilteredRecentGroups(filtered);
+    }
+  }, [searchGroupsQuery, recentGroups]);
 
   // ✅ Fetch groups khi mở modal
   const fetchGroups = async () => {
@@ -373,7 +393,7 @@ export default function HomeScreen() {
 
     return (
       <TouchableOpacity
-        style={styles.groupBox}
+        style={[styles.groupBox, { width: (screenWidth - 48) / 4 }]} // ✅ Fixed width để hiển thị đúng 4 nhóm (paddingHorizontal 16*2=32 + margin giữa items ~16)
         onPress={() => router.push({
           pathname: "/group/camera",
           params, // Sử dụng biến để dễ log
@@ -484,13 +504,24 @@ export default function HomeScreen() {
             {loadingRecentGroups ? (
               <ActivityIndicator size="large" color="#2ECC71" style={{ margin: 20 }} />
             ) : recentGroups.length > 0 ? (
-              <FlatList
-                data={recentGroups}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyExtractor={(item) => item.id?.toString() || item.groupId?.toString()}
-                renderItem={renderRecentGroupItem}
-              />
+              <View>
+                {/* ✅ Thanh search nếu có ít nhất 1 nhóm */}
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Tìm nhóm..."
+                  value={searchGroupsQuery}
+                  onChangeText={setSearchGroupsQuery}
+                  placeholderTextColor="#999"
+                />
+                <FlatList
+                  data={filteredRecentGroups}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(item) => item.id?.toString() || item.groupId?.toString()}
+                  ItemSeparatorComponent={() => <View style={{ width: 16 }} />} // ✅ Thêm margin giữa các item để spacing đẹp
+                  renderItem={renderRecentGroupItem}
+                />
+              </View>
             ) : (
               <Text style={{ textAlign: 'center', color: '#888' }}>Chưa có nhóm nào</Text>
             )}
@@ -633,14 +664,17 @@ export default function HomeScreen() {
                   </Text>
                 </TouchableOpacity>
                 {loadingMembers ? (
-                  <ActivityIndicator size="small" color="#2ECC71" />
+                  <View style={{ height: 180, justifyContent: 'center', alignItems: 'center' }}>
+                    <ActivityIndicator size="small" color="#2ECC71" />
+                  </View>
                 ) : (
                   <FlatList
                     data={members.filter(m => (m.user?.userId || m.userId) !== currentUserId)} // ✅ Filter ẩn current user
                     keyExtractor={(item) => (item.user?.userId || item.userId)?.toString()}
+                    ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
                     renderItem={renderMemberItem}
-                    style={{ maxHeight: 300 }}
-                    ListEmptyComponent={<Text style={{ textAlign: "center", color: "#888" }}>Không có thành viên</Text>}
+                    style={{ height: 180 }}
+                    ListEmptyComponent={<Text style={{ textAlign: "center", color: "#888", marginTop: 70 }}>Không có thành viên</Text>}
                   />
                 )}
               </View>

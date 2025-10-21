@@ -196,7 +196,7 @@ export default function PreviewScreen() {
         {isTyping && (
           <TextInput
             style={styles.input}
-            placeholder="Nhập chữ..."
+            placeholder="Nhập nội dung..."
             placeholderTextColor="#ccc"
             value={text}
             onChangeText={setText}
@@ -216,44 +216,48 @@ export default function PreviewScreen() {
           >
             <Text style={styles.toolText}>Aa</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.toolBtn, styles.toolBtnSmall, { marginLeft: 12 }]}
-          >
-            <Ionicons name="happy-outline" size={22} color="#000" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.toolBtn, styles.toolBtnSmall, { marginLeft: 12 }]}
-          >
-            <Ionicons name="create-outline" size={22} color="#000" />
-          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
           style={styles.sendBtn}
-          onPress={() => {
-            // 🧠 (Tuỳ chọn) lưu tạm vào Zustand để hiển thị story local
-            useStatusStore.getState().addStatus({
-              userId: "me",
-              id: Date.now().toString(),
-              text,
-              uri,
-              groupId,
-            });
+         onPress={() => {
+  if (!albumId) {
+    Alert.alert(
+      "⚠️ Chưa có album",
+      "Bạn cần tạo album trước khi đăng story.",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Tạo album",
+          onPress: () => setModalVisible(true),
+        },
+      ]
+    );
+    return;
+  }
 
-            // 📤 Gửi sang PostScreen
-            router.push({
-              pathname: "/group/post-screen",
-              params: {
-                uri,
-                text,
-                groupId,
-                groupName,
-                albumId: albumId || "", // ✅ thêm dòng này
-              },
-            });
-          }}
+  // 🧠 Lưu tạm vào Zustand (tùy chọn)
+  useStatusStore.getState().addStatus({
+    userId: "me",
+    id: Date.now().toString(),
+    text,
+    uri,
+    groupId,
+  });
+
+  // 📤 Điều hướng sang PostScreen
+  router.push({
+    pathname: "/group/post-screen",
+    params: {
+      uri,
+      text,
+      groupId,
+      groupName,
+      albumId,
+    },
+  });
+}}
+
         >
           <Ionicons name="arrow-forward" size={24} color="#fff" />
         </TouchableOpacity>

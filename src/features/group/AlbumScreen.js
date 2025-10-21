@@ -127,9 +127,21 @@ export default function AlbumScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={22} color="#000" />
-        </TouchableOpacity>
+     <TouchableOpacity
+  onPress={() =>
+    router.push({
+      pathname: "/group/camera",
+      params: {
+        groupId,
+        groupName: albumName, 
+        albumName,
+      },
+    })
+  }
+>
+  <Ionicons name="chevron-back" size={22} color="#000" />
+</TouchableOpacity>
+
 
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>{albumName || "Album nhóm"}</Text>

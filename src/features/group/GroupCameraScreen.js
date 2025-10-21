@@ -7,6 +7,7 @@ import AvatarDropdown from "../../components/AvatarDropdown";
 import { getGroup } from "../../services/groupService"; // ✅ Import to get album info
 import { saveAlbumForGroup, getAlbumForGroup } from "../../store/albumStorage";
 import { albumService } from "../../services/albumService"; // ✅ Import albumService
+import * as ImagePicker from "expo-image-picker";
 
 
 export default function GroupCameraScreen() {
@@ -115,6 +116,43 @@ export default function GroupCameraScreen() {
     });
   };
 
+  const pickImageFromLibrary = async () => {
+  try {
+    // ✅ Yêu cầu quyền truy cập thư viện ảnh
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Cần quyền", "Ứng dụng cần quyền truy cập thư viện ảnh của bạn");
+      return;
+    }
+
+    // ✅ Mở thư viện chọn ảnh
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const selectedImage = result.assets[0].uri;
+      console.log("📸 Ảnh được chọn:", selectedImage);
+
+      // 👉 Điều hướng sang trang preview giống như ảnh chụp
+      router.push({
+        pathname: "/group/preview",
+        params: {
+          uri: selectedImage,
+          groupId: params.groupId,
+          groupName: params.groupName,
+          avatarUrl: params.avatarUrl,
+        },
+      });
+    }
+  } catch (error) {
+    console.error("❌ Lỗi khi chọn ảnh:", error);
+    Alert.alert("Lỗi", "Không thể mở thư viện ảnh");
+  }
+};
+
+
   return (
     <View style={{ flex: 1, backgroundColor: "#A8F0C4" }}>
       {/* Header */}
@@ -169,9 +207,9 @@ export default function GroupCameraScreen() {
         </View>
 
         {/* Nút thư viện ảnh (góc dưới trái) */}
-        <TouchableOpacity style={styles.bottomLeft}>
-          <Ionicons name="images-outline" size={36} color="#fff" />
-        </TouchableOpacity>
+        <TouchableOpacity style={styles.bottomLeft} onPress={pickImageFromLibrary}>
+  <Ionicons name="images-outline" size={36} color="#fff" />
+</TouchableOpacity>
 
         {/* Nút chụp ảnh ở giữa */}
         <View style={styles.bottomCenter}>
