@@ -70,6 +70,8 @@ export default function MyWalletScreen() {
       case 'transferout':
       case 'transfer_out':
         return 'Chuyển tiền';
+        case 'deposit':
+      return 'Nạp tiền';
       default:
         return type || 'Giao dịch';
     }
@@ -142,11 +144,14 @@ export default function MyWalletScreen() {
                 </Text>
                 
                 {/* ✅ Description/Note nếu có */}
-                {item.description && (
-                  <Text style={[styles.transactionDate, { fontSize: 12, color: '#888' }]}>
-                    {item.description}
-                  </Text>
-                )}
+               {item.description && (
+  <Text style={[styles.transactionDate, { fontSize: 12, color: '#888' }]}>
+    {item.description.replace(
+      /(\d+(?:\.\d+)?)/,
+      (match) => Number(match).toLocaleString("vi-VN") + "₫"
+    )}
+  </Text>
+)}
                 
                 {/* Date */}
                 <Text style={styles.transactionDate}>

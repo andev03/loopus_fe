@@ -3,21 +3,34 @@ import { View, Text, TextInput, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { depositMoney } from "../../../services/walletService"; // ✅ đã tạo ở trên
+import { depositMoney } from "../../../services/walletService";
 
 export default function DepositScreen() {
   const [amount, setAmount] = useState("");
 
+  // 🧮 Định dạng tiền Việt Nam (VD: 1.000)
+  const formatCurrency = (value) => {
+    if (!value) return "";
+    const numericValue = value.replace(/\D/g, ""); // bỏ ký tự không phải số
+    return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
+  const handleChange = (text) => {
+    const formatted = formatCurrency(text);
+    setAmount(formatted);
+  };
+
   const handleDeposit = async () => {
-    if (!amount || isNaN(amount) || Number(amount) <= 0) {
+    const numericAmount = Number(amount.replace(/\./g, ""));
+    if (!numericAmount || isNaN(numericAmount) || numericAmount <= 0) {
       Alert.alert("Lỗi", "Vui lòng nhập số tiền hợp lệ");
       return;
     }
 
-    const res = await depositMoney(Number(amount));
+    const res = await depositMoney(numericAmount);
     if (res.success) {
       Alert.alert("✅ Thành công", "Nạp tiền thành công!", [
-        { text: "OK", onPress: () => router.back() },
+        { text: "OK", onPress: () => router.replace("/(tabs)/account") },
       ]);
     } else {
       Alert.alert("❌ Thất bại", res.message || "Không thể nạp tiền");
@@ -36,7 +49,7 @@ export default function DepositScreen() {
 
       <TextInput
         value={amount}
-        onChangeText={setAmount}
+        onChangeText={handleChange}
         placeholder="Nhập số tiền (VND)"
         keyboardType="numeric"
         style={{
