@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -14,147 +14,189 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { sendUserMessage, getChatMessages } from "../../../services/supportChatService";
-import { getUserId, getChatId, saveChatId } from "../../../services/storageService";
+import { getUserId, getChatId, saveChatId, getUserRole, clearChatId } from "../../../services/storageService";
 
 export default function ChatLoopusScreen() {
   const navigation = useNavigation();
   const [userId, setUserId] = useState(null);
-  const [chatId, setChatId] = useState(null); // 🟢 Thêm state cho chatId
+  const [userRole, setUserRole] = useState(null);
+  const [chatId, setChatId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const flatListRef = useRef(null);
 
-  // 🟢 Lấy userId VÀ chatId từ AsyncStorage khi vào màn hình
   useEffect(() => {
     const fetchIds = async () => {
       const id = await getUserId();
-      const savedChatId = await getChatId(); // 🟢 Lấy chatId đã lưu
-      console.log("👤 [USER] Lấy IDs từ storage:", { userId: id, chatId: savedChatId });
-      if (id) {
+      const role = await getUserRole();
+      console.log("👤 [USER] Lấy IDs từ storage:", { userId: id, role });
+      if (id && role) {
         setUserId(id);
-        if (savedChatId) setChatId(savedChatId); // 🟢 Set chatId nếu có
+        setUserRole(role);
+        
+        // 🟢 Lấy chatId riêng theo userId
+        const savedChatId = await getChatId(id);
+        if (savedChatId) {
+          setChatId(savedChatId);
+          console.log("💾 [STORAGE] Load chatId riêng:", savedChatId);
+        } else {
+          console.log(`${role === 'ADMIN' ? '👑 [ADMIN]' : '👤 [USER]'} Chưa có chatId riêng, sẽ tạo khi gửi message`);
+        }
+        
+        // 🟢 USER: Không Alert, chỉ rỗng nếu chưa chat
+        if (role !== 'ADMIN') {
+          console.log("👤 [USER] Chỉ xem chat riêng của mình");
+        }
       } else {
         Alert.alert("Lỗi", "Không tìm thấy thông tin người dùng");
+        navigation.goBack();
       }
     };
     fetchIds();
   }, []);
 
-  // 🟢 Lấy tin nhắn khi có userId HOẶC chatId
-  useEffect(() => {
-    if (!userId) return;
-    const idToUse = chatId || userId; // 🟢 Ưu tiên chatId, fallback userId (lần đầu)
-    const fetchMessages = async () => {
-      try {
-        console.log("🔄 [CHAT] Bắt đầu load tin nhắn với ID:", idToUse);
-        setLoading(true);
+  const loadMessages = async (idToUse) => {
+    // 🟢 USER chỉ load nếu có chatId riêng
+    if (userRole === 'USER' && !chatId) {
+      console.log("👤 [USER] Chưa có chatId riêng, giữ list rỗng");
+      setMessages([]);
+      return;
+    }
+    
+    try {
+      console.log("🔄 [CHAT] Load tin nhắn với ID:", idToUse, "(Role:", userRole, ")");
+      setLoading(true);
 
-        const res = await getChatMessages(idToUse); // 🟢 Dùng idToUse
-        console.log("📦 [CHAT] Dữ liệu server trả về:", res);
+      const res = await getChatMessages(idToUse);
+      console.log("📦 Dữ liệu server:", res);
 
-        const data = Array.isArray(res.data) ? res.data : [];
-        const formatted = data.map((msg) => ({
-          id: msg.id || Date.now().toString(),
-          sender: msg.isUser ? "Bạn" : "Loopus",
-          text: msg.message,
-          time: new Date(msg.createdAt).toLocaleTimeString().slice(0, 5),
-        }));
-        setMessages(formatted);
-
-        console.log(`✅ [CHAT] Đã load ${formatted.length} tin nhắn`);
-      } catch (error) {
-        console.log("❌ [CHAT] Lỗi khi load tin nhắn:", error);
-        // Nếu lỗi lần đầu (không có chat), có thể tạo bằng gửi message rỗng sau
-      } finally {
-        setLoading(false);
+      let data = Array.isArray(res.data) ? res.data : [];
+      // 🟢 USER: Filter chỉ message của userId (an toàn frontend)
+      if (userRole === 'USER') {
+        data = data.filter(msg => msg.sender?.userId === userId);
       }
-    };
-    fetchMessages();
-  }, [userId, chatId]); // 🟢 Depend vào cả 2 để reload khi có chatId mới
+      
+      // Sort ASC (cũ trên, mới dưới)
+      data.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      const formatted = data.map((msg, index) => ({
+        id: msg.messageId || `${Date.now()}-${Math.random().toString(36)}-${index}`,
+        isUser: msg.sender?.userId === userId,
+        sender: msg.sender?.userId === userId ? "Bạn" : (msg.sender?.fullName || (userRole === 'ADMIN' ? "User" : "Loopus")),
+        text: msg.message || "",
+        time: msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString().slice(0, 5) : "",
+      }));
+      
+      const keys = formatted.map(m => m.id);
+      if (new Set(keys).size !== keys.length) console.warn("⚠️ Duplicate keys!");
+      console.log("🔍 Keys:", keys.slice(0, 5));
 
-  // 🟢 Gửi tin nhắn user
+      setMessages(formatted);
+      console.log(`✅ Load ${formatted.length} tin nhắn`);
+    } catch (error) {
+      console.log("❌ Lỗi load:", error);
+      if (error.response?.status === 404) {
+        console.log(`${userRole === 'ADMIN' ? '👑 [ADMIN]' : '👤 [USER]'} Chat chưa tồn tại`);
+      }
+      setMessages([]); // Rỗng nếu lỗi
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Auto-scroll xuống dưới
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (!userId || !userRole) return;
+    const idToUse = chatId || userId; // Fallback userId để tạo/load
+    loadMessages(idToUse);
+  }, [userId, chatId, userRole]);
+
   const sendMessage = async () => {
     if (!input.trim() || !userId) return;
 
+    const content = input.trim();
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36);
     const userMsg = {
-      id: Date.now().toString(),
+      id: `${timestamp}-${randomStr}`,
+      isUser: true,
       sender: "Bạn",
-      text: input,
+      text: content,
       time: new Date().toLocaleTimeString().slice(0, 5),
     };
     setMessages((prev) => [...prev, userMsg]);
-
-    const content = input;
     setInput("");
 
-    console.log("✉️ [CHAT] Đang gửi tin nhắn:", content);
+    console.log("✉️ Gửi:", content);
 
     try {
+      setLoading(true);
       const res = await sendUserMessage(userId, content);
-      console.log("📬 [CHAT] Phản hồi server đầy đủ:", res); // 🟢 Log full để check chatId
+      console.log("📬 Phản hồi:", res);
 
-      // 🟢 Lưu chatId nếu server trả về (check field đúng, ví dụ: res.data.chatId)
+      // 🟢 Lưu chatId riêng theo userId nếu có mới
       if (res?.data?.chatId) {
-        const newChatId = res.data.chatId;
-        setChatId(newChatId);
-        await saveChatId(newChatId); // 🟢 Lưu vào storage
-        console.log("💾 [CHAT] Đã lưu chatId mới:", newChatId);
+        await saveChatId(userId, res.data.chatId);
+        setChatId(res.data.chatId);
+        console.log("💾 Lưu chatId riêng cho", userId, ":", res.data.chatId);
       }
 
-      if (res?.data) {
-        const msg = res.data;
-        const senderName = msg.sender?.fullName || "Loopus";
-        const senderId = msg.sender?.userId;
-        const isUser = senderId === userId;
+      const idToUse = chatId || userId || res?.data?.chatId;
+      await loadMessages(idToUse); // Reload: ADMIN thấy tất, USER chỉ riêng
 
-        const replyMsg = {
-          id: msg.messageId || Date.now().toString() + 1, // 🟢 Fallback nếu không có
-          sender: isUser ? "Bạn" : senderName,
-          text: msg.message,
-          time: new Date(msg.createdAt || Date.now()).toLocaleTimeString().slice(0, 5),
-        };
-
-        setMessages((prev) => [...prev, replyMsg]);
-      }
+      setTimeout(() => {
+        console.log("🔍 Keys after reload:", messages.map(m => m.id).slice(-2));
+      }, 0);
     } catch (error) {
-      console.log("❌ [CHAT] Lỗi khi gửi tin nhắn:", error);
+      console.log("❌ Lỗi gửi:", error);
       Alert.alert("Lỗi", "Không gửi được tin nhắn");
+      setMessages((prev) => prev.filter(m => m.id !== userMsg.id)); // Rollback
+    } finally {
+      setLoading(false);
     }
   };
 
   const renderMessage = ({ item }) => {
-    const isUser = item.sender === "Bạn";
+    const isUser = item.isUser || item.sender === "Bạn";
+    const senderToShow = !isUser ? item.sender : null;
+    const hasTime = !!item.time;
     return (
-      <View
-        style={[
-          styles.messageRow,
-          { justifyContent: isUser ? "flex-end" : "flex-start" },
-        ]}
-      >
+      <View style={[styles.messageRow, { justifyContent: isUser ? "flex-end" : "flex-start" }]}>
         {!isUser && (
-          <Image
-            source={{
-              uri: "https://via.placeholder.com/150/2ECC71/FFFFFF?text=L",
-            }}
-            style={styles.avatar}
-          />
+          <Image source={{ uri: "https://via.placeholder.com/150/2ECC71/FFFFFF?text=L" }} style={styles.avatar} />
         )}
-        <View
-          style={[
-            styles.messageBubble,
-            { backgroundColor: isUser ? "#DCF8C6" : "#f1f1f1" },
-          ]}
-        >
-          {!isUser && <Text style={styles.sender}>Trợ Lý Loopus</Text>}
+        <View style={[styles.messageBubble, { backgroundColor: isUser ? "#DCF8C6" : "#f1f1f1" }]}>
+          {senderToShow && <Text style={styles.sender}>{senderToShow}</Text>}
           <Text style={styles.messageText}>{item.text}</Text>
+          {hasTime && <Text style={styles.time}>{item.time}</Text>}
         </View>
       </View>
     );
   };
 
+  // 🟢 Render text hướng dẫn nếu USER chưa chat (thay vì return riêng)
+  const renderEmptyList = () => {
+    if (userRole === 'USER' && messages.length === 0 && !loading) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <Text style={{ fontSize: 16, textAlign: 'center', color: '#666', marginBottom: 20 }}>
+            Gửi tin nhắn đầu tiên để bắt đầu chat hỗ trợ!
+          </Text>
+        </View>
+      );
+    }
+    return null;
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      {/* Header (luôn show) */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="close-outline" size={28} color="#fff" />
@@ -167,75 +209,127 @@ export default function ChatLoopusScreen() {
       </View>
 
       {/* Chat list */}
-      {loading ? (
-        <ActivityIndicator
-          style={{ marginTop: 20 }}
-          size="large"
-          color="#2ECC71"
-        />
+      {loading && messages.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color="#2ECC71" />
+        </View>
       ) : (
         <FlatList
+          ref={flatListRef}
           data={messages}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) => `${item.id}-${index}`}
           renderItem={renderMessage}
-          contentContainerStyle={{ padding: 16 }}
+          ListEmptyComponent={renderEmptyList} // 🟢 Text hướng dẫn nếu rỗng (chỉ USER)
+          contentContainerStyle={{ padding: 16, flexGrow: 1 }}
         />
       )}
 
-      {/* Input */}
+      {/* Input (luôn show) */}
       <View style={styles.inputRow}>
         <TextInput
           style={styles.input}
           placeholder="Nhập nội dung"
           value={input}
           onChangeText={setInput}
+          editable={!loading}
         />
-        <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
-          <Ionicons name="send" size={22} color="#fff" />
+        <TouchableOpacity 
+          style={[styles.sendButton, loading && { opacity: 0.5 }]} 
+          onPress={sendMessage}
+          disabled={loading || !input.trim()}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Ionicons name="send" size={22} color="#fff" />
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
 
+// Styles (giữ nguyên từ code cũ, thêm nếu thiếu)
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
   header: {
-    backgroundColor: "#2ECC71",
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
-    justifyContent: "space-between",
+    padding: 16,
+    backgroundColor: "#2ECC71",
   },
-  headerTitle: { color: "#fff", fontSize: 16, fontWeight: "bold" },
-  headerSubtitle: { color: "#fff", fontSize: 12 },
-  messageRow: { flexDirection: "row", marginBottom: 10 },
-  avatar: { width: 32, height: 32, borderRadius: 16, marginRight: 8 },
+  headerTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  headerSubtitle: {
+    color: "#fff",
+    fontSize: 14,
+    opacity: 0.8,
+  },
+  messageRow: {
+    flexDirection: "row",
+    marginVertical: 4,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 8,
+  },
   messageBubble: {
-    maxWidth: "75%",
-    padding: 10,
-    borderRadius: 8,
+    maxWidth: "80%",
+    padding: 12,
+    borderRadius: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+    elevation: 2,
   },
-  sender: { fontSize: 12, fontWeight: "bold", marginBottom: 2 },
-  messageText: { fontSize: 14 },
+  sender: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#666",
+    marginBottom: 4,
+  },
+  messageText: {
+    fontSize: 16,
+    color: "#333",
+    lineHeight: 20,
+  },
+  time: {
+    fontSize: 12,
+    color: "#999",
+    alignSelf: "flex-end",
+    marginTop: 4,
+  },
   inputRow: {
     flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
+    padding: 16,
     borderTopWidth: 1,
-    borderColor: "#ddd",
+    borderTopColor: "#eee",
+    backgroundColor: "#fff",
   },
   input: {
     flex: 1,
-    backgroundColor: "#f1f1f1",
+    borderWidth: 1,
+    borderColor: "#ddd",
     borderRadius: 20,
-    paddingHorizontal: 15,
-    fontSize: 14,
-    marginRight: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
   },
   sendButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "#2ECC71",
-    padding: 10,
-    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
