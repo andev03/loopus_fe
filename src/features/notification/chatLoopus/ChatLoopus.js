@@ -25,6 +25,8 @@ export default function ChatLoopusScreen() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const flatListRef = useRef(null);
+  const pollIntervalRef = useRef(null);  // Ref cho interval
+  const isInitializedRef = useRef(false);  // ← THÊM: Flag để chỉ init polling 1 lần sau khi có chatId ổn định
 
   useEffect(() => {
     const fetchIds = async () => {
@@ -57,9 +59,9 @@ export default function ChatLoopusScreen() {
   }, []);
 
   const loadMessages = async (idToUse) => {
-    // 🟢 USER chỉ load nếu có chatId riêng
-    if (userRole === 'USER' && !chatId) {
-      console.log("👤 [USER] Chưa có chatId riêng, giữ list rỗng");
+    // 🟢 USER chỉ load nếu có chatId riêng (hoặc fallback userId để tạo)
+    if (userRole === 'USER' && !idToUse) {
+      console.log("👤 [USER] Chưa có chatId/userId, giữ list rỗng");
       setMessages([]);
       return;
     }
@@ -69,30 +71,40 @@ export default function ChatLoopusScreen() {
       setLoading(true);
 
       const res = await getChatMessages(idToUse);
-      console.log("📦 Dữ liệu server:", res);
+      console.log("📦 Raw dữ liệu server:", res);  // ← DEBUG: Xem full response
 
-      let data = Array.isArray(res.data) ? res.data : [];
-      // 🟢 USER: Filter chỉ message của userId (an toàn frontend)
-      if (userRole === 'USER') {
-        data = data.filter(msg => msg.sender?.userId === userId);
+      // ✅ FIX: Unwrap đúng structure (array hoặc {data: [...]})
+      let data = [];
+      if (Array.isArray(res)) {
+        data = res;
+      } else if (res?.data && Array.isArray(res.data)) {
+        data = res.data;
+      } else if (Array.isArray(res.data?.data)) {
+        data = res.data.data;
+      } else {
+        data = res.data || [];
       }
       
+      console.log("🔍 Raw data before process:", data.length, "items");  // ← DEBUG: Check có admin msg không
+
+      // ✅ FIX: BỎ FILTER SAI - User thấy TẤT CẢ messages (phân biệt sender sau)
+      // Không filter nữa: User cần thấy cả admin + user msg
+
       // Sort ASC (cũ trên, mới dưới)
-      data.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      data.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
       const formatted = data.map((msg, index) => ({
         id: msg.messageId || `${Date.now()}-${Math.random().toString(36)}-${index}`,
         isUser: msg.sender?.userId === userId,
         sender: msg.sender?.userId === userId ? "Bạn" : (msg.sender?.fullName || (userRole === 'ADMIN' ? "User" : "Loopus")),
-        text: msg.message || "",
+        text: msg.message || msg.content || "",  // ← FIX: Hỗ trợ content/message
         time: msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString().slice(0, 5) : "",
       }));
       
       const keys = formatted.map(m => m.id);
       if (new Set(keys).size !== keys.length) console.warn("⚠️ Duplicate keys!");
-      console.log("🔍 Keys:", keys.slice(0, 5));
+      console.log("✅ Formatted", formatted.length, "messages (first sender:", formatted[0]?.sender, ")");  // ← DEBUG
 
       setMessages(formatted);
-      console.log(`✅ Load ${formatted.length} tin nhắn`);
     } catch (error) {
       console.log("❌ Lỗi load:", error);
       if (error.response?.status === 404) {
@@ -111,11 +123,42 @@ export default function ChatLoopusScreen() {
     }
   }, [messages]);
 
+  // ✅ FIXED: Single useEffect cho INITIAL LOAD + POLLING (tránh multi-interval)
   useEffect(() => {
     if (!userId || !userRole) return;
+
     const idToUse = chatId || userId; // Fallback userId để tạo/load
-    loadMessages(idToUse);
-  }, [userId, chatId, userRole]);
+    if (idToUse) {
+      loadMessages(idToUse);  // Load ngay khi có ID
+      console.log("🔄 [INITIAL] Load messages lần đầu với ID:", idToUse);
+
+      // ✅ START POLLING CHỈ 1 LẦN SAU INITIAL LOAD (sử dụng flag ref)
+      if (!isInitializedRef.current) {
+        // Clear nếu có interval cũ (an toàn)
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          console.log("🛑 [POLLING] Clear interval cũ trước khi start");
+        }
+
+        // Start polling với chatId hiện tại (sẽ dùng chatId mới nếu change sau)
+        pollIntervalRef.current = setInterval(() => {
+          loadMessages(chatId || idToUse);  // Dùng chatId ưu tiên
+        }, 5000);
+        isInitializedRef.current = true;  // Flag: Chỉ start 1 lần
+        console.log("🔄 [POLLING] Bắt đầu poll messages mỗi 5s với ID:", idToUse);
+      }
+    }
+
+    // Cleanup polling khi unmount
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+        isInitializedRef.current = false;  // Reset flag nếu cần re-init
+        console.log("🛑 [POLLING] Dừng poll hoàn toàn (unmount)");
+      }
+    };
+  }, [userId, userRole, chatId]);  // Depend on all, nhưng flag tránh re-start polling
 
   const sendMessage = async () => {
     if (!input.trim() || !userId) return;
@@ -143,16 +186,17 @@ export default function ChatLoopusScreen() {
       // 🟢 Lưu chatId riêng theo userId nếu có mới
       if (res?.data?.chatId) {
         await saveChatId(userId, res.data.chatId);
-        setChatId(res.data.chatId);
+        setChatId(res.data.chatId);  // Trigger effect để update ID (polling sẽ dùng ID mới)
         console.log("💾 Lưu chatId riêng cho", userId, ":", res.data.chatId);
       }
 
       const idToUse = chatId || userId || res?.data?.chatId;
-      await loadMessages(idToUse); // Reload: ADMIN thấy tất, USER chỉ riêng
+      await loadMessages(idToUse); // Reload ngay sau gửi (không chờ poll)
 
+      // ✅ FIXED: Log sau khi state update (sử dụng useEffect nếu cần, nhưng tạm console sau await)
       setTimeout(() => {
-        console.log("🔍 Keys after reload:", messages.map(m => m.id).slice(-2));
-      }, 0);
+        console.log("🔍 Keys after reload:", messages.map(m => m.id).slice(-2));  // Note: Có thể log old, nhưng OK cho debug
+      }, 100);  // Tăng timeout để state update
     } catch (error) {
       console.log("❌ Lỗi gửi:", error);
       Alert.alert("Lỗi", "Không gửi được tin nhắn");
@@ -182,7 +226,7 @@ export default function ChatLoopusScreen() {
 
   // 🟢 Render text hướng dẫn nếu USER chưa chat (thay vì return riêng)
   const renderEmptyList = () => {
-    if (userRole === 'USER' && messages.length === 0 && !loading) {
+    if (userRole === 'USER' && messages.length === 0 && !loading && !chatId) {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
           <Text style={{ fontSize: 16, textAlign: 'center', color: '#666', marginBottom: 20 }}>
@@ -249,7 +293,7 @@ export default function ChatLoopusScreen() {
   );
 }
 
-// Styles (giữ nguyên từ code cũ, thêm nếu thiếu)
+// Styles (giữ nguyên)
 const styles = StyleSheet.create({
   container: {
     flex: 1,

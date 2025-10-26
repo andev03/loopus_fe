@@ -16,6 +16,10 @@ import * as ImagePicker from "expo-image-picker";
 import { getUser, saveUser } from "../../services/storageService";
 import { updateUserInformation, updateUserAvatar } from "../../services/authService";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import styles from "./EditProfile.styles";
+import { getAllBanks } from "../../services/bankService";
+import { Picker } from "@react-native-picker/picker"; 
+
 
 export default function EditProfile() {
   const router = useRouter();
@@ -30,29 +34,49 @@ export default function EditProfile() {
   const [bio, setBio] = useState("");
   const [avatar, setAvatar] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [banks, setBanks] = useState([]);
+const [selectedBankId, setSelectedBankId] = useState("");
+const [bankNumber, setBankNumber] = useState("");
+
 
   useEffect(() => {
-  const loadUser = async () => {
-    const u = await getUser();
-    console.log("🧩 User từ storage:", u);
+  const loadUserAndBanks = async () => {
+    try {
+      const u = await getUser();
+      console.log("🧩 User từ storage:", u);
 
-    if (u) {
-      setUser(u);
+      if (u) {
+        setUser(u);
 
-      // Nếu backend chỉ trả về fullName thì tách ra
-      const [first, ...lastParts] = (u.fullName || "").split(" ");
-      const last = lastParts.join(" ");
+        // Nếu backend chỉ trả về fullName thì tách ra
+        const [first, ...lastParts] = (u.fullName || "").split(" ");
+        const last = lastParts.join(" ");
 
-      setFirstName(first || "");
-      setLastName(last || "");
-      setEmail(u.email || u.username || "");
-      setDob(u.dateOfBirth || "");
-      setBio(u.bio || "");
-      setAvatar(u.avatarUrl);
+        setFirstName(first || "");
+        setLastName(last || "");
+        setEmail(u.email || u.username || "");
+        setDob(u.dateOfBirth || "");
+        setBio(u.bio || "");
+        setAvatar(u.avatarUrl || "");
+        setSelectedBankId(u.bankId || "");      // 👈 Thêm
+        setBankNumber(u.bankNumber || "");      // 👈 Thêm
+      }
+
+      // 🔹 Gọi API lấy danh sách ngân hàng
+      const bankRes = await getAllBanks();
+      if (bankRes?.success) {
+        setBanks(bankRes.data);
+      } else {
+        console.warn("⚠️ Không tải được danh sách ngân hàng:", bankRes?.message);
+      }
+    } catch (err) {
+      console.error("❌ Lỗi load user/bank:", err);
     }
   };
-  loadUser();
+
+  loadUserAndBanks();
 }, []);
+
 
 
  const handleSave = async () => {
@@ -61,43 +85,75 @@ export default function EditProfile() {
     return;
   }
 
-  setLoading(true);
+  // 👇 Kiểm tra nếu người dùng thay đổi hoặc thêm mới thông tin ngân hàng
+  const oldBankId = user?.bankId || "";
+  const oldBankNumber = user?.bankNumber || "";
 
-  const fullName = `${firstName} ${lastName}`.trim(); // 👈 Ghép fullName mới
-  const userData = {
-    userId: user?.userId,
-    firstName,
-    lastName,
-    email,
-    dob,
-    bio: bio || "Chưa có giới thiệu",
-    fullName, // 👈 Thêm fullName nếu backend cần
+  const isFirstTimeUpdate = !oldBankId && !oldBankNumber; // lần đầu cập nhật
+  const bankChanged =
+    isFirstTimeUpdate ||
+    selectedBankId !== oldBankId ||
+    bankNumber !== oldBankNumber;
+
+  const saveProfile = async () => {
+    setLoading(true);
+
+    const fullName = `${firstName} ${lastName}`.trim();
+    const userData = {
+      userId: user?.userId,
+      firstName,
+      lastName,
+      email,
+      dob,
+      bio: bio || "Chưa có giới thiệu",
+      fullName,
+      bankId: selectedBankId || null,
+      bankNumber: bankNumber || null,
+    };
+
+    console.log("📤 Sending update:", userData);
+    const res = await updateUserInformation(userData, user?.token);
+    setLoading(false);
+
+    if (res.success) {
+      Alert.alert("Thành công", "Cập nhật thông tin thành công");
+
+      await saveUser({
+        ...user,
+        firstName,
+        lastName,
+        fullName,
+        dob,
+        bio,
+        bankId: selectedBankId || user.bankId || null,
+        bankNumber: bankNumber || user.bankNumber || null,
+      });
+
+      router.push("/(tabs)/account");
+    } else {
+      console.log("❌ Update profile error:", res);
+      Alert.alert("Thất bại", res.message || "Cập nhật thất bại");
+    }
   };
 
-  console.log("📤 Sending update:", userData);
-
-  const res = await updateUserInformation(userData, user?.token);
-  setLoading(false);
-
-  if (res.success) {
-    Alert.alert("Thành công", "Cập nhật thông tin thành công");
-    
-    // 👈 Lưu với fullName mới
-    await saveUser({ 
-      ...user, 
-      firstName, 
-      lastName, 
-      fullName, // 👈 Quan trọng: cập nhật fullName
-      dob, 
-      bio 
-    });
-    
-    router.push("/(tabs)/account");
+  // ⚠️ Nếu người dùng đổi hoặc lần đầu nhập thông tin ngân hàng
+  if (bankChanged) {
+    Alert.alert(
+      "Xác nhận thay đổi",
+      isFirstTimeUpdate
+        ? "Bạn hãy đảm bảo rằng bạn nhập đúng số tài khoản ngân hàng. Chúng tôi sẽ không chịu trách nhiệm cho số tiền bị thất lạc do sai số tài khoản ngân hàng."
+        : "Bạn có chắc muốn thay đổi thông tin ngân hàng không? Chúng tôi sẽ không chịu trách nhiệm cho số tiền bị thất lạc do sai số tài khoản ngân hàng.",
+      [
+        { text: "Hủy", style: "cancel" },
+        { text: "Đồng ý", onPress: saveProfile },
+      ]
+    );
   } else {
-    console.log("❌ Update profile error:", res);
-    Alert.alert("Thất bại", res.message || "Cập nhật thất bại");
+    // Nếu không đổi ngân hàng → lưu luôn
+    await saveProfile();
   }
 };
+
 
  const handlePickAvatar = async () => {
   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -270,6 +326,46 @@ const handleUploadAvatar = async (file) => {
             />
           </View>
 
+          {/* Ngân hàng */}
+<View style={styles.inputGroup}>
+  <View style={styles.labelContainer}>
+    <Ionicons name="card-outline" size={18} color="#10b981" />
+    <Text style={styles.label}>Ngân hàng</Text>
+  </View>
+  <View style={[styles.input, { padding: 0, overflow: "hidden" }]}>
+    <Picker
+      selectedValue={selectedBankId}
+      onValueChange={(value) => setSelectedBankId(value)}
+    >
+      <Picker.Item label="-- Chọn ngân hàng --" value="" />
+      {banks.map((bank) => (
+        <Picker.Item
+          key={bank.bankId}
+          label={bank.bankName}
+          value={bank.bankId}
+        />
+      ))}
+    </Picker>
+  </View>
+</View>
+
+{/* Số tài khoản */}
+<View style={styles.inputGroup}>
+  <View style={styles.labelContainer}>
+    <Ionicons name="cash-outline" size={18} color="#10b981" />
+    <Text style={styles.label}>Số tài khoản</Text>
+  </View>
+  <TextInput
+    style={styles.input}
+    value={bankNumber}
+    onChangeText={setBankNumber}
+    placeholder="Nhập số tài khoản"
+    placeholderTextColor="#9ca3af"
+    keyboardType="numeric"
+  />
+</View>
+
+
           {/* Save Button */}
           <TouchableOpacity 
             onPress={handleSave} 
@@ -291,70 +387,3 @@ const handleUploadAvatar = async (file) => {
   );
 }
 
-/* --- Thêm style avatar --- */
-const styles = {
-  container: { flex: 1, backgroundColor: "#fff" },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#10b981",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backButton: { padding: 4 },
-  headerTitle: { color: "#fff", fontSize: 18, fontWeight: "600" },
-  scrollView: { paddingHorizontal: 16 },
-  avatarContainer: {
-    alignItems: "center",
-    marginTop: 24,
-  },
-  avatar: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    borderWidth: 3,
-    borderColor: "#10b981",
-  },
-  overlay: {
-    position: "absolute",
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarLabel: {
-    marginTop: 8,
-    color: "#6b7280",
-    fontSize: 13,
-  },
-  formContainer: { marginTop: 20 },
-  inputGroup: { marginBottom: 16 },
-  labelContainer: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
-  label: { marginLeft: 6, color: "#374151", fontWeight: "500" },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: "#111827",
-  },
-  inputDisabled: { backgroundColor: "#f3f4f6", color: "#9ca3af" },
-  textArea: { height: 80, textAlignVertical: "top" },
-  dateText: { color: "#111827", fontSize: 15 },
-  datePlaceholder: { color: "#9ca3af", fontSize: 15 },
-  button: {
-    backgroundColor: "#10b981",
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 10,
-    marginBottom: 40,
-  },
-  buttonContent: { flexDirection: "row", alignItems: "center" },
-  buttonText: { color: "#fff", fontSize: 16, marginLeft: 6, fontWeight: "600" },
-};

@@ -90,10 +90,10 @@ export default function NotificationsScreen() {
         let displayTitle = item.title || "";
         let displayMessage = item.message || "";
 
-        // ✅ Fix: Parse float trước, rồi floor để loại .0, format en-US cho dấu phẩy
+        // ✅ Fix: Parse float trước, rồi floor để loại .0, format vi-VN cho dấu chấm và "đồng"
         const parsedAmount = parseFloat(item.amount) || 0;
         const cleanAmount = Math.floor(parsedAmount);
-        const amountText = cleanAmount > 0 ? `${cleanAmount.toLocaleString('en-US')} ₫` : "";
+        const amountText = cleanAmount > 0 ? `${cleanAmount.toLocaleString('vi-VN')} đồng` : "";
 
         // ✅ Tùy chỉnh nội dung theo type
         if (item.type === "PAYMENT_REMINDER") {
@@ -117,6 +117,13 @@ export default function NotificationsScreen() {
           const recipientFromMessage = item.message?.match(/cho (.+?)( \d|$)/)?.[1] || recipientName || "ai đó";
           displayTitle = `Bạn đã trả ${amountText}`;
           displayMessage = `Bạn đã chuyển ${amountText} cho ${recipientFromMessage}`;
+        } else if (item.type === "DEPOSIT") {
+          // ✅ Thêm override cho DEPOSIT (bao gồm nạp/rút tiền)
+          const isWithdraw = item.title.includes("Rút tiền thành công");
+          const action = isWithdraw ? "rút" : "nạp";
+          const direction = isWithdraw ? "từ" : "vào";
+          displayTitle = item.title;
+          displayMessage = `Bạn đã ${action} ${amountText} ${direction} ví.`;
         }
 
         return {
@@ -244,7 +251,7 @@ export default function NotificationsScreen() {
                 )}
 
                 <Text style={styles.itemTime}>
-                  {new Date(item.createdAt).toLocaleString()}
+                  {new Date(item.createdAt).toLocaleString('vi-VN')}
                 </Text>
               </View>
             </TouchableOpacity>

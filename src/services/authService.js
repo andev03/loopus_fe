@@ -92,6 +92,7 @@ export const findUserByEmail = async (email) => {
     };
   }
 };
+
 export const updateUserInformation = async (userData, token) => {
   try {
     const res = await axios.put(
