@@ -1,38 +1,33 @@
 {
-"expo": {
-"name": "LOOPUS",
-"slug": "loopus",
-"version": "1.0.0",
-"orientation": "portrait",
-"icon": "./assets/icon.png",
-"userInterfaceStyle": "light",
-"splash": {
-"image": "./assets/splash.png",
-"resizeMode": "contain",
-"backgroundColor": "#ffffff"
-},
-"assetBundlePatterns": [
-"**/*"
-],
-"ios": {
-"supportsTablet": true
-},
-"android": {
-"adaptiveIcon": {
-"foregroundImage": "./assets/adaptive-icon.png",
-"backgroundColor": "#ffffff"
+  "expo": {
+    "name": "LOOPUS",
+    "slug": "loopus",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.loopus.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "extra": {
+      "EXPO_PUBLIC_GEMINI_API_KEY": "",
+      "EXPO_PUBLIC_API_GROUP": "",
+      "router": {},
+      "eas": {
+        "projectId": "f6cce6c3-cc6b-4572-b221-4bcaa163542b"
+      }
+    },
+    "scheme": "loopus"
+  }
 }
-},
-"web": {
-"favicon": "./assets/favicon.png"
-},
-"plugins": [
-"expo-router"
-],
-"extra": {
-"EXPO_PUBLIC_GEMINI_API_KEY": "",
-"EXPO_PUBLIC_API_GROUP": ""
-},
-"scheme": "loopus"
-}
-} 
