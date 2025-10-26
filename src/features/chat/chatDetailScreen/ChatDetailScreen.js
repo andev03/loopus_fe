@@ -180,6 +180,7 @@ export default function ChatDetailScreen() {
       poll.time = new Date(poll.createdAt).toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: 'Asia/Ho_Chi_Minh',
       });
       poll.isCurrentUser =
         user?.userId === (poll.createdBy?.userId || poll.creator?.userId);
@@ -582,6 +583,7 @@ export default function ChatDetailScreen() {
         time: new Date(m.createdAt).toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
+          timeZone: 'Asia/Ho_Chi_Minh',
         }),
         imageUrl: m.imageUrl,
         type: m.type?.toLowerCase() || "image",
