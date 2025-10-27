@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, FlatList } from "react-native";
+import { View, Text, TouchableOpacity, FlatList, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import styles from "./MyWallet.styles";
-import { getWalletByUserId, getTransactionsByWalletId } from "../../../services/walletService"; // ✅ Thêm import full transactions
+import { getWalletByUserId, getTransactionsByWalletId } from "../../../services/walletService"; 
+import { getUser } from "../../../services/storageService";
 
 export default function MyWalletScreen() {
   const [balance, setBalance] = useState(0);
@@ -59,21 +60,29 @@ export default function MyWalletScreen() {
   }, []);
 
   // ✅ Hàm chuyển type sang tiếng Việt (case-insensitive)
-  const getTypeText = (type) => {
-    const lowerType = (type || '').toLowerCase();
-    switch (lowerType) {
-      case 'transfer in':
-      case 'transferin':
-      case 'transfer_in':
-        return 'Nhận tiền';
-      case 'transfer out':
-      case 'transferout':
-      case 'transfer_out':
-        return 'Chuyển tiền';
-      default:
-        return type || 'Giao dịch';
-    }
-  };
+ const getTypeText = (type, description = "") => {
+  const lowerType = (type || "").toLowerCase();
+  const lowerDesc = (description || "").toLowerCase();
+
+  if (lowerDesc.includes("rút")) return "Rút tiền";
+  if (lowerDesc.includes("nạp")) return "Nạp tiền";
+
+  switch (lowerType) {
+    case "transfer in":
+    case "transferin":
+    case "transfer_in":
+      return "Nhận tiền";
+    case "transfer out":
+    case "transferout":
+    case "transfer_out":
+      return "Chuyển tiền";
+    case "deposit":
+      return "Nạp tiền";
+    default:
+      return "Giao dịch";
+  }
+};
+
 
   // ✅ Hàm lấy icon và màu dựa trên type
   const getTransactionIcon = (type, amount) => {
@@ -108,14 +117,65 @@ export default function MyWalletScreen() {
         </Text>
       </View>
 
-      {/* Nút nạp tiền */}
-<TouchableOpacity
+ <TouchableOpacity
   style={styles.depositButton}
-  onPress={() => router.push("/account/deposit")} 
+  onPress={async () => {
+    try {
+      const user = await getUser();
+
+      if (!user?.bankId || !user?.bankNumber) {
+        Alert.alert(
+          "Thiếu thông tin ngân hàng",
+          "Vui lòng cập nhật thông tin ngân hàng trước khi nạp tiền.",
+          [
+            { text: "Hủy", style: "cancel" },
+            { text: "Cập nhật ngay", onPress: () => router.push("edit-profile") },
+          ]
+        );
+        return;
+      }
+
+      router.push("/account/deposit");
+    } catch (error) {
+      console.error("❌ Lỗi khi kiểm tra user:", error);
+      Alert.alert("Lỗi", "Không thể kiểm tra thông tin người dùng.");
+    }
+  }}
 >
   <Ionicons name="add-circle-outline" size={20} color="#fff" />
   <Text style={styles.depositText}>Nạp tiền</Text>
 </TouchableOpacity>
+
+{/* Nút Rút tiền */}
+<TouchableOpacity
+  style={[styles.depositButton, { backgroundColor: "#E74C3C", marginTop: 10 }]}
+  onPress={async () => {
+    try {
+      const user = await getUser();
+
+      if (!user?.bankId || !user?.bankNumber) {
+        Alert.alert(
+          "Thiếu thông tin ngân hàng",
+          "Vui lòng cập nhật thông tin ngân hàng trước khi rút tiền.",
+          [
+            { text: "Hủy", style: "cancel" },
+            { text: "Cập nhật ngay", onPress: () => router.push("edit-profile") },
+          ]
+        );
+        return;
+      }
+
+      router.push("/account/payout");
+    } catch (error) {
+      console.error("❌ Lỗi khi kiểm tra user:", error);
+      Alert.alert("Lỗi", "Không thể kiểm tra thông tin người dùng.");
+    }
+  }}
+>
+  <Ionicons name="remove-circle-outline" size={20} color="#fff" />
+  <Text style={styles.depositText}>Rút tiền</Text>
+</TouchableOpacity>
+
 
       {/* Danh sách giao dịch */}
       <Text style={styles.sectionTitle}>Giao dịch gần đây</Text>
@@ -137,16 +197,19 @@ export default function MyWalletScreen() {
                 
                 {/* ✅ Type + Chi tiết (description/otherUser nếu có) */}
                 <Text style={styles.transactionType}>
-                  {getTypeText(item.type)}
-                  {item.otherUserName && ` từ ${item.otherUserName}`} {/* Nếu có otherUser */}
-                </Text>
+  {getTypeText(item.type, item.description)}
+  {item.otherUserName && ` từ ${item.otherUserName}`}
+</Text>
                 
                 {/* ✅ Description/Note nếu có */}
-                {item.description && (
-                  <Text style={[styles.transactionDate, { fontSize: 12, color: '#888' }]}>
-                    {item.description}
-                  </Text>
-                )}
+               {item.description && (
+  <Text style={[styles.transactionDate, { fontSize: 12, color: '#888' }]}>
+    {item.description.replace(
+      /(\d+(?:\.\d+)?)/,
+      (match) => Number(match).toLocaleString("vi-VN") + "₫"
+    )}
+  </Text>
+)}
                 
                 {/* Date */}
                 <Text style={styles.transactionDate}>
@@ -181,10 +244,13 @@ export default function MyWalletScreen() {
       />
 
       {/* Nút quay lại */}
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={20} color="#fff" />
-        <Text style={styles.backText}>Quay lại</Text>
-      </TouchableOpacity>
+      <TouchableOpacity
+      style={styles.backButton}
+      onPress={() => router.push("/(tabs)/account")} 
+    >
+      <Ionicons name="arrow-back" size={20} color="#fff" />
+      <Text style={styles.backText}>Quay lại</Text>
+    </TouchableOpacity>
     </SafeAreaView>
   );
 }

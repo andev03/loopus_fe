@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   TextInput,
   Alert,
+  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,9 +20,12 @@ import styles from "./HomeScreen.styles";
 import { useRouter } from "expo-router";
 import ChatModal from "../home/ChatModal";
 import { notificationService } from "../../services/notificationService";
-import { getUserId } from "../../services/storageService";
-import { groupService } from "../../services/groupService"; 
+import { getUserId, getUser } from "../../services/storageService";
+import { groupService } from "../../services/groupService";
 import { expenseService } from "../../services/expenseService";
+import { Link } from "expo-router";
+
+const { width: screenWidth } = Dimensions.get("window");
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -37,7 +41,7 @@ export default function HomeScreen() {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [loadingMembers, setLoadingMembers] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState(null); 
+  const [currentUserId, setCurrentUserId] = useState(null);
   const [debtModalVisible, setDebtModalVisible] = useState(false);
   const [debtList, setDebtList] = useState([]);
   const [filteredDebtList, setFilteredDebtList] = useState([]); // ✅ Filtered cho search debt
@@ -45,9 +49,12 @@ export default function HomeScreen() {
   const [loadingDebt, setLoadingDebt] = useState(false);
   const [successVisible, setSuccessVisible] = useState(false);
   const [loadingRemindAll, setLoadingRemindAll] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
   // ✅ NEW: States cho groups thật ở home
   const [recentGroups, setRecentGroups] = useState([]);
+  const [filteredRecentGroups, setFilteredRecentGroups] = useState([]); // ✅ Filtered cho search groups home
+  const [searchGroupsQuery, setSearchGroupsQuery] = useState(""); // ✅ Search query cho groups home
   const [loadingRecentGroups, setLoadingRecentGroups] = useState(false);
 
   // 🌀 Animation cho chuông
@@ -79,6 +86,19 @@ export default function HomeScreen() {
     ).start();
   };
 
+  useEffect(() => {
+  const loadUser = async () => {
+    try {
+      const user = await getUser();
+      setCurrentUser(user);
+      setCurrentUserId(user?.userId);
+    } catch (err) {
+      console.error("Lỗi load user:", err);
+    }
+  };
+  loadUser();
+}, []);
+
   // 📨 Kiểm tra có thông báo chưa đọc để lắc chuông
   useEffect(() => {
     const checkNotifications = async () => {
@@ -98,7 +118,7 @@ export default function HomeScreen() {
     checkNotifications();
   }, []);
 
-  // ✅ Fetch recent groups thật cho home section
+  // ✅ Fetch recent groups thật cho home section (tất cả groups, không slice)
   useEffect(() => {
     const fetchRecentGroups = async () => {
       try {
@@ -108,13 +128,16 @@ export default function HomeScreen() {
         const res = await groupService.getGroups(userId);
         if (res.success && res.data?.data) {
           const allGroups = res.data.data;
-          setRecentGroups(allGroups.slice(0, 4)); // Lấy 4 groups đầu tiên
+          setRecentGroups(allGroups); // Lấy tất cả groups
+          setFilteredRecentGroups(allGroups); // Set filtered ban đầu
         } else {
           setRecentGroups([]);
+          setFilteredRecentGroups([]);
         }
       } catch (err) {
         console.error("❌ Lỗi khi fetch recent groups:", err);
         setRecentGroups([]);
+        setFilteredRecentGroups([]);
       } finally {
         setLoadingRecentGroups(false);
       }
@@ -147,6 +170,18 @@ export default function HomeScreen() {
     }
   }, [searchDebtQuery, debtList]);
 
+  // ✅ Filter recent groups theo search home
+  useEffect(() => {
+    if (searchGroupsQuery === "") {
+      setFilteredRecentGroups(recentGroups);
+    } else {
+      const filtered = recentGroups.filter((group) =>
+        (group.groupName || group.name || "").toLowerCase().includes(searchGroupsQuery.toLowerCase())
+      );
+      setFilteredRecentGroups(filtered);
+    }
+  }, [searchGroupsQuery, recentGroups]);
+
   // ✅ Fetch groups khi mở modal
   const fetchGroups = async () => {
     try {
@@ -169,20 +204,61 @@ export default function HomeScreen() {
 
   // ✅ Fetch members khi chọn nhóm
   const fetchMembers = async (groupId) => {
-    try {
-      setLoadingMembers(true);
-      const res = await groupService.viewMembers(groupId);
-      if (res.success && res.data?.data) {
-        setMembers(res.data.data);
-      } else {
-        console.log("❌ Không lấy được danh sách thành viên");
-      }
-    } catch (err) {
-      console.error("❌ Lỗi khi fetch members:", err);
-    } finally {
-      setLoadingMembers(false);
+  try {
+    setLoadingMembers(true);
+    const currentUserId = await getUserId();
+    if (!currentUserId) return;
+
+    // 1. Lấy danh sách thành viên nhóm
+    const membersRes = await groupService.viewMembers(groupId);
+    if (!membersRes.success || !membersRes.data?.data) {
+      setMembers([]);
+      return;
     }
-  };
+
+    const rawMembers = membersRes.data.data;
+    const membersWithDebt = [];
+
+    // 2. Duyệt từng thành viên → lấy số tiền BẠN NỢ HỌ
+    for (const member of rawMembers) {
+      const user = member.user || member;
+      const memberId = user.userId || user.id;
+
+      // Bỏ qua chính mình
+      if (memberId === currentUserId) continue;
+
+      let debtAmount = 0;
+      try {
+        // API: getDebtReminder(creditorId, debtorId)
+        // Ở đây: memberId là chủ nợ, currentUserId là con nợ → "bạn nợ member"
+        const debtRes = await expenseService.getDebtReminder(memberId, currentUserId);
+
+        if (debtRes?.data && Array.isArray(debtRes.data)) {
+          const unpaid = debtRes.data.filter(d => !d.paid);
+          debtAmount = unpaid.reduce((sum, d) => sum + (d.shareAmount || 0), 0);
+        }
+      } catch (err) {
+        console.warn(`Không lấy được nợ với ${memberId}:`, err);
+        debtAmount = 0;
+      }
+
+      membersWithDebt.push({
+        ...user,
+        userId: memberId,
+        fullName: user.fullName || user.username,
+        avatarUrl: user.avatarUrl,
+        debtAmount, // Số tiền bạn nợ họ
+      });
+    }
+
+    setMembers(membersWithDebt);
+  } catch (err) {
+    console.error("Lỗi khi fetch members + debt:", err);
+    setMembers([]);
+  } finally {
+    setLoadingMembers(false);
+  }
+};
 
   // ✅ Xử lý chọn nhóm
   const handleSelectGroup = (group) => {
@@ -197,6 +273,28 @@ export default function HomeScreen() {
     setSelectedGroup(group);
     fetchMembers(group.id || group.groupId);
   };
+
+  const handleChatPress = () => {
+  if (currentUser?.role === "MEMBER") {
+    // MEMBER: mở chatbot
+    setChatVisible(true);
+  } else {
+    // USER: hỏi mua premium
+    Alert.alert(
+      "Tính năng dành cho thành viên",
+      "Chức năng Chat AI chỉ dành cho thành viên Loopus Premium. Bạn có muốn nâng cấp không?",
+      [
+        { text: "Không", style: "cancel" },
+        {
+          text: "Mua ngay",
+          onPress: () => {
+            router.push("account/premium");
+          },
+        },
+      ]
+    );
+  }
+};
 
   // ✅ Xử lý chọn thành viên để thanh toán
   const handleSelectMember = (member) => {
@@ -251,53 +349,66 @@ export default function HomeScreen() {
 
   // ✅ Render item thành viên (ẩn current user)
   const renderMemberItem = ({ item }) => {
-    const user = item.user || item;
-    // ✅ Ẩn nếu là current user
-    if (user.userId === currentUserId) return null;
-    return (
-      <TouchableOpacity
-        style={styles.memberModalItem}
-        onPress={() => handleSelectMember(user)}
-      >
-        <Image
-          source={{
-            uri: user.avatarUrl || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
-          }}
-          style={styles.memberModalAvatar}
-        />
-        <Text style={styles.memberModalName}>{user.fullName || user.username || "Không tên"}</Text>
-      </TouchableOpacity>
-    );
-  };
+  if (item.userId === currentUserId) return null;
 
-  const renderRecentGroupItem = ({ item }) => {
-  const params = {
-    groupId: item.id || item.groupId,
-    groupName: item.groupName || item.name,
-    avatarUrl: item.avatarUrl,
-  };
-
-  // 👈 Thêm log params truyền đi
-  console.log("📤 Truyền params đến /group/camera:", params);
+  const hasDebt = item.debtAmount > 0;
 
   return (
     <TouchableOpacity
-      style={styles.groupBox}
-      onPress={() => router.push({
-        pathname: "/group/camera",
-        params, // Sử dụng biến để dễ log
-      })}
+      style={styles.memberModalItem}
+      onPress={() => handleSelectMember(item)}
     >
       <Image
         source={{
-          uri: item.avatarUrl || `https://api.dicebear.com/7.x/identicon/png?seed=${item.id}`,
+          uri: item.avatarUrl || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
         }}
-        style={styles.groupImage}
+        style={styles.memberModalAvatar}
       />
-      <Text style={{ textAlign: 'center', marginTop: 8 }}>{item.groupName || item.name || "Nhóm không tên"}</Text>
+      <View style={{ flex: 1, marginLeft: 12 }}>
+        <Text style={styles.memberModalName}>
+          {item.fullName || "Không tên"}
+        </Text>
+        {hasDebt ? (
+          <Text style={{ color: "#E74C3C", fontSize: 13, fontWeight: "600" }}>
+            Bạn nợ: {item.debtAmount.toLocaleString()}₫
+          </Text>
+        ) : (
+          <Text style={{ color: "#aaa", fontSize: 12 }}>Bạn không nợ</Text>
+        )}
+      </View>
+      <Ionicons name="chevron-forward" size={20} color="#ccc" />
     </TouchableOpacity>
   );
 };
+
+  const renderRecentGroupItem = ({ item }) => {
+    const params = {
+      groupId: item.id || item.groupId,
+      groupName: item.groupName || item.name,
+      avatarUrl: item.avatarUrl,
+    };
+
+    // 👈 Thêm log params truyền đi
+    console.log("📤 Truyền params đến /group/camera:", params);
+
+    return (
+      <TouchableOpacity
+        style={[styles.groupBox, { width: (screenWidth - 48) / 4 }]} // ✅ Fixed width để hiển thị đúng 4 nhóm (paddingHorizontal 16*2=32 + margin giữa items ~16)
+        onPress={() => router.push({
+          pathname: "/group/camera",
+          params, // Sử dụng biến để dễ log
+        })}
+      >
+        <Image
+          source={{
+            uri: item.avatarUrl || `https://api.dicebear.com/7.x/identicon/png?seed=${item.id}`,
+          }}
+          style={styles.groupImage}
+        />
+        <Text style={{ textAlign: 'center', marginTop: 8 }}>{item.groupName || item.name || "Nhóm không tên"}</Text>
+      </TouchableOpacity>
+    );
+  };
 
   const fetchAllDebtReminders = async () => {
     try {
@@ -387,23 +498,36 @@ export default function HomeScreen() {
           </View>
         </SafeAreaView>
 
-        {/* Phần groups thật */}
+        {/* Groups sections */}
         <View style={styles.groupsSection}>
           <View style={styles.groups}>
             {loadingRecentGroups ? (
               <ActivityIndicator size="large" color="#2ECC71" style={{ margin: 20 }} />
             ) : recentGroups.length > 0 ? (
-              <FlatList
-                data={recentGroups}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyExtractor={(item) => item.id?.toString() || item.groupId?.toString()}
-                renderItem={renderRecentGroupItem}
-              />
+              <View>
+                {/* ✅ Thanh search nếu có ít nhất 1 nhóm */}
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Tìm nhóm..."
+                  value={searchGroupsQuery}
+                  onChangeText={setSearchGroupsQuery}
+                  placeholderTextColor="#999"
+                />
+                <FlatList
+                  data={filteredRecentGroups}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(item) => item.id?.toString() || item.groupId?.toString()}
+                  ItemSeparatorComponent={() => <View style={{ width: 16 }} />} // ✅ Thêm margin giữa các item để spacing đẹp
+                  renderItem={renderRecentGroupItem}
+                />
+              </View>
             ) : (
               <Text style={{ textAlign: 'center', color: '#888' }}>Chưa có nhóm nào</Text>
             )}
           </View>
+
+      
 
           {/* Nhắc nợ & Chia tiền */}
           <View style={styles.actionContainer}>
@@ -431,6 +555,8 @@ export default function HomeScreen() {
           </View>
         </View>
 
+
+
         {/* Các section khác giữ nguyên */}
         <Text style={styles.sectionTitle}>Du lịch</Text>
         <ScrollView
@@ -438,56 +564,73 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           style={styles.dealRow}
         >
-          <TouchableOpacity style={styles.travelCard}>
-            <Image
-              source={{ uri: "https://picsum.photos/300/200?random=11" }}
-              style={styles.travelImage}
-            />
-            <View style={styles.overlay}>
-              <Text style={styles.overlayText}>Xem ngay</Text>
-            </View>
-          </TouchableOpacity>
+          <ScrollView
+  horizontal
+  showsHorizontalScrollIndicator={false}
+  style={styles.dealRow}
+>
+  <TouchableOpacity style={styles.travelCard}>
+    <Image
+      source={require('../../assets/images/dulich1.jpg')}
+      style={styles.travelImage}
+    />
+    <View style={styles.overlay}>
+      <Text style={styles.overlayText}>Xem ngay</Text>
+    </View>
+  </TouchableOpacity>
 
-          <TouchableOpacity style={styles.travelCard}>
-            <Image
-              source={{ uri: "https://picsum.photos/300/200?random=12" }}
-              style={styles.travelImage}
-            />
-            <View style={styles.overlay}>
-              <Text style={styles.overlayText}>Xem ngay</Text>
-            </View>
-          </TouchableOpacity>
+  <TouchableOpacity style={styles.travelCard}>
+    <Image
+      source={require('../../assets/images/dulich2.jpg')}
+      style={styles.travelImage}
+    />
+    <View style={styles.overlay}>
+      <Text style={styles.overlayText}>Xem ngay</Text>
+    </View>
+  </TouchableOpacity>
+</ScrollView>
         </ScrollView>
 
-        {/* Deal đỉnh */}
         <Text style={styles.sectionTitle}>Deal đỉnh</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.dealRow}
-        >
-          {[21, 22, 23].map((n) => (
-            <TouchableOpacity key={n} style={styles.dealCard}>
-              <Image
-                source={{ uri: `https://picsum.photos/200/150?random=${n}` }}
-                style={styles.dealImageFull}
-              />
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+<ScrollView
+  horizontal
+  showsHorizontalScrollIndicator={false}
+  style={styles.dealRow}
+>
+  <TouchableOpacity key="dealh1" style={styles.dealCard}>
+    <Image
+      source={require('../../assets/images/dealdinh1.jpg')}
+      style={styles.dealImageFull}
+    />
+  </TouchableOpacity>
+  <TouchableOpacity key="dealh2" style={styles.dealCard}>
+    <Image
+      source={require('../../assets/images/dealdinh2.jpg')}
+      style={styles.dealImageFull}
+    />
+  </TouchableOpacity>
+  <TouchableOpacity key="dealh3" style={styles.dealCard}>
+    <Image
+      source={require('../../assets/images/dealdinh3.jpg')}
+      style={styles.dealImageFull}
+    />
+  </TouchableOpacity>
+</ScrollView>
       </ScrollView>
 
-      {/* Floating Action Button cho Chatbot */}
-      <TouchableOpacity
-        style={styles.chatFAB}
-        onPress={() => setChatVisible(true)}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="chatbubble-outline" size={24} color="#fff" />
-      </TouchableOpacity>
+      {/* FAB Chatbot - luôn hiện, nhưng USER bị chặn */}
+<TouchableOpacity
+  style={styles.chatFAB}
+  onPress={handleChatPress}
+  activeOpacity={0.7}
+>
+  <Ionicons name="chatbubble-outline" size={24} color="#fff" />
+</TouchableOpacity> 
 
-      {/* Modal Chatbot */}
-      <ChatModal visible={chatVisible} onClose={() => setChatVisible(false)} />
+      {/* Modal Chatbot - chỉ hiện khi MEMBER mở */}
+{currentUser?.role === "MEMBER" && (
+  <ChatModal visible={chatVisible} onClose={() => setChatVisible(false)} />
+)}
 
       {/* ✅ Modal Thanh toán */}
       <Modal
@@ -528,7 +671,7 @@ export default function HomeScreen() {
               <View style={{ padding: 16, borderTopWidth: 1, borderColor: "#eee" }}>
                 <TouchableOpacity
                   style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}
-                  onPress={() => setSelectedGroup(null)} 
+                  onPress={() => setSelectedGroup(null)}
                 >
                   <Ionicons name="chevron-up" size={20} color="#2ECC71" />
                   <Text style={{ marginLeft: 8, fontSize: 16, fontWeight: "500" }}>
@@ -536,14 +679,17 @@ export default function HomeScreen() {
                   </Text>
                 </TouchableOpacity>
                 {loadingMembers ? (
-                  <ActivityIndicator size="small" color="#2ECC71" />
+                  <View style={{ height: 180, justifyContent: 'center', alignItems: 'center' }}>
+                    <ActivityIndicator size="small" color="#2ECC71" />
+                  </View>
                 ) : (
                   <FlatList
                     data={members.filter(m => (m.user?.userId || m.userId) !== currentUserId)} // ✅ Filter ẩn current user
                     keyExtractor={(item) => (item.user?.userId || item.userId)?.toString()}
+                    ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
                     renderItem={renderMemberItem}
-                    style={{ maxHeight: 300 }}
-                    ListEmptyComponent={<Text style={{ textAlign: "center", color: "#888" }}>Không có thành viên</Text>}
+                    style={{ height: 180 }}
+                    ListEmptyComponent={<Text style={{ textAlign: "center", color: "#888", marginTop: 70 }}>Không có thành viên</Text>}
                   />
                 )}
               </View>

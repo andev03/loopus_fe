@@ -291,38 +291,52 @@ export default function PaymentScreen() {
           </View>
         )}
 
-        {!getSelectedTotal() && (
-          <View style={styles.amountBox}>
-            <Text style={styles.currency}>VND</Text>
-            <TextInput
-              value={amount}
-              onChangeText={(text) => {
-                const numeric = text.replace(/\D/g, "");
-                const formatted = numeric.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-                setAmount(formatted);
-              }}
-              placeholder="Nhập số tiền ..."
-              keyboardType="numeric"
-              style={styles.amountInput}
-            />
-          </View>
-        )}
+        {/* {getSelectedTotal() > 0 && (
+  <View style={styles.amountBox}>
+    <Text style={styles.currency}>VND</Text>
+    <TextInput
+      value={amount}
+      onChangeText={(text) => {
+        const numeric = text.replace(/\D/g, "");
+        const formatted = numeric.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        setAmount(formatted);
+      }}
+      placeholder="Nhập số tiền ..."
+      keyboardType="numeric"
+      style={styles.amountInput}
+    />
+  </View>
+)} */}
       </View>
 
       {/* Pay button */}
       <TouchableOpacity
-        style={[styles.payBtn, loading && { opacity: 0.7 }]}
-        onPress={handleTransfer}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.payText}>
-            Chuyển {getSelectedTotal() > 0 ? getSelectedTotal().toLocaleString() : amount} VND
-          </Text>
-        )}
-      </TouchableOpacity>
+  style={[
+    styles.payBtn,
+    (loading || getSelectedTotal() === 0) && { opacity: 0.7 }, // làm mờ nút
+  ]}
+  onPress={() => {
+    if (getSelectedTotal() === 0) {
+      Alert.alert("Thông báo", "Vui lòng chọn ít nhất một khoản nợ trước khi chuyển tiền.");
+      return;
+    }
+    handleTransfer();
+  }}
+  disabled={loading || getSelectedTotal() === 0}
+>
+  {loading ? (
+    <ActivityIndicator color="#fff" />
+  ) : (
+    <Text style={styles.payText}>
+      Chuyển{" "}
+      {getSelectedTotal() > 0
+        ? getSelectedTotal().toLocaleString()
+        : amount}{" "}
+      VND
+    </Text>
+  )}
+</TouchableOpacity>
+
     </SafeAreaView>
   );
 }

@@ -1,34 +1,60 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, Alert } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, Alert, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { depositMoney } from "../../../services/walletService"; // ✅ đã tạo ở trên
+import { depositMoney } from "../../../services/walletService";
 
 export default function DepositScreen() {
   const [amount, setAmount] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // 🧮 Định dạng tiền Việt Nam (VD: 1.000)
+  const formatCurrency = (value) => {
+    if (!value) return "";
+    const numericValue = value.replace(/\D/g, ""); // bỏ ký tự không phải số
+    return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
+  const handleChange = (text) => {
+    const formatted = formatCurrency(text);
+    setAmount(formatted);
+  };
 
   const handleDeposit = async () => {
-    if (!amount || isNaN(amount) || Number(amount) <= 0) {
+    const numericAmount = Number(amount.replace(/\./g, ""));
+    if (!numericAmount || isNaN(numericAmount) || numericAmount <= 0) {
       Alert.alert("Lỗi", "Vui lòng nhập số tiền hợp lệ");
       return;
     }
 
-    const res = await depositMoney(Number(amount));
-    if (res.success) {
-      Alert.alert("✅ Thành công", "Nạp tiền thành công!", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
-    } else {
-      Alert.alert("❌ Thất bại", res.message || "Không thể nạp tiền");
+    try {
+      setLoading(true);
+      const res = await depositMoney(numericAmount);
+      console.log("💰 Kết quả nạp tiền:", res);
+
+      if (res.success && res.data?.checkoutUrl) {
+        // ✅ Mở trang thanh toán PayOS
+        Linking.openURL(res.data.checkoutUrl);
+      } else {
+        Alert.alert("❌ Lỗi", res.message || "Không thể tạo link thanh toán");
+      }
+    } catch (error) {
+      console.error("❌ Lỗi khi nạp tiền:", error);
+      Alert.alert("Lỗi", "Không thể thực hiện giao dịch");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <SafeAreaView style={{ flex: 1, padding: 20 }}>
-      <TouchableOpacity onPress={() => router.back()} style={{ marginBottom: 20 }}>
-        <Ionicons name="arrow-back" size={24} color="#333" />
-      </TouchableOpacity>
+     <TouchableOpacity
+  onPress={() => router.push("/account/my-wallet")} // hoặc router.replace("/account/my-wallet")
+  style={{ marginBottom: 20 }}
+>
+  <Ionicons name="arrow-back" size={24} color="#333" />
+</TouchableOpacity>
 
       <Text style={{ fontSize: 22, fontWeight: "bold", marginBottom: 20 }}>
         Nạp tiền vào ví
@@ -36,7 +62,7 @@ export default function DepositScreen() {
 
       <TextInput
         value={amount}
-        onChangeText={setAmount}
+        onChangeText={handleChange}
         placeholder="Nhập số tiền (VND)"
         keyboardType="numeric"
         style={{
@@ -50,16 +76,17 @@ export default function DepositScreen() {
       />
 
       <TouchableOpacity
+        disabled={loading}
         onPress={handleDeposit}
         style={{
-          backgroundColor: "#2ECC71",
+          backgroundColor: loading ? "#95a5a6" : "#2ECC71",
           padding: 15,
           borderRadius: 8,
           alignItems: "center",
         }}
       >
         <Text style={{ color: "#fff", fontSize: 18, fontWeight: "bold" }}>
-          Xác nhận nạp tiền
+          {loading ? "Đang xử lý..." : "Xác nhận nạp tiền"}
         </Text>
       </TouchableOpacity>
     </SafeAreaView>

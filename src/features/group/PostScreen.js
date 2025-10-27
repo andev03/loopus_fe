@@ -11,61 +11,105 @@ import { SafeAreaView as RNSSafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, router } from "expo-router";
 import AvatarDropdown from "../../components/AvatarDropdown";
-import { storyService } from "../../services/storyService"; 
+// import { storyService } from "../../services/storyService";
+import { createStory } from "../../services/storyService";
+import { getUserId } from "../../services/storageService";
+import { getGroup } from "../../services/groupService";
 import styles from "./PostScreen.styles";
 
 export default function PostScreen() {
- const { uri, text, groupId, groupName, albumId } = useLocalSearchParams();
+  const { uri, text, groupId, groupName, albumId } = useLocalSearchParams();
 
   const [loading, setLoading] = useState(false);
   const [posted, setPosted] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [resolvedAlbumId, setResolvedAlbumId] = useState(albumId || null);
+
+  // Get userId from AsyncStorage
+  useEffect(() => {
+    (async () => {
+      const uid = await getUserId();
+      setCurrentUserId(uid);
+    })();
+  }, []);
+
+  // Resolve albumId from group if missing (skip if endpoint 404/500)
+  useEffect(() => {
+    (async () => {
+      if (!resolvedAlbumId && groupId) {
+        try {
+          const g = await getGroup(groupId); // if this 500s, we just skip
+          const aId =
+            g?.albumId ||
+            g?.album?.id ||
+            g?.data?.album?.id ||
+            g?.data?.albumId ||
+            null;
+          if (aId) setResolvedAlbumId(String(aId));
+        } catch (e) {
+          // Silently skip; albumId is optional for upload when groupId is sent
+          console.log("⚠️ Bỏ qua lấy albumId:", e?.message);
+        }
+      }
+    })();
+  }, [groupId, resolvedAlbumId]);
 
   useEffect(() => {
-    if (uri && !posted) {
-      console.log("📸 [DEBUG] Ảnh URI nhận được từ PreviewScreen:", uri);
+    if (uri && currentUserId && !posted) {
+      console.log("📸 [DEBUG] URI:", uri);
       handleCreateStory();
-    } else {
-      console.log("⚠️ [DEBUG] Không có URI hoặc story đã được đăng");
     }
-  }, [uri]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uri, currentUserId]);
 
   const handleCreateStory = async () => {
-  try {
-    setLoading(true);
+    try {
+      if (!currentUserId) {
+        Alert.alert("Thiếu thông tin", "Không tìm thấy userId để tạo story.");
+        return;
+      }
+      if (!uri) {
+        Alert.alert("Thiếu ảnh/video", "Vui lòng chọn file hợp lệ.");
+        return;
+      }
 
-    const file = {
-      uri,
-      type: "image/jpeg",
-      name: "story.jpg",
-    };
+      setLoading(true);
 
-    const visibilityType = groupId ? "group" : "followers";
+      const file = { uri };
+      const visibilityType = groupId ? "group" : "followers";
 
-    console.log("📤 [DEBUG] Dữ liệu gửi đi:", {
-      caption: text,
-      visibilityType,
-      albumId,
-      groupId,
-      uri,
-    });
+      const request = {
+        userId: String(currentUserId),
+        caption: text || "",
+        visibilityType,
+        albumId: resolvedAlbumId || undefined,
+        groupId: groupId ? String(groupId) : undefined,
+      };
 
-    const res = await storyService.createStory(
-      file,
-      text || "",
-      visibilityType,
-      albumId || "" // ✅ lấy đúng albumId từ PreviewScreen
-    );
+      console.log("📤 [DEBUG] Payload:", { request });
+      console.log("📤 [DEBUG] File:", file);
 
-    console.log("✅ [DEBUG] Story tạo thành công:", res);
-    setPosted(true);
-    Alert.alert("Thành công", "Story đã được đăng!");
-  } catch (error) {
-    console.error("❌ [DEBUG] Lỗi đăng story:", error);
-    Alert.alert("Lỗi", error.message || "Không thể tạo story");
-  } finally {
-    setLoading(false);
-  }
-};
+      const res = await createStory({ request, file });
+
+      console.log("✅ Story tạo thành công:", res);
+      setPosted(true);
+      Alert.alert("Thành công", "Story đã được đăng!");
+
+      // Navigate back to the group flow (fallback: one step back)
+      if (groupId) {
+        // Adjust to your route that lists group stories
+        // router.replace({ pathname: "/group/story", params: { groupId } })
+        router.back();
+      } else {
+        router.back();
+      }
+    } catch (error) {
+      console.error("❌ Lỗi đăng story:", error?.response?.data || error.message);
+      Alert.alert("Lỗi", error?.response?.data?.message || error.message || "Không thể tạo story");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <RNSSafeAreaView style={styles.container} edges={["top", "bottom"]}>
@@ -93,8 +137,6 @@ export default function PostScreen() {
           <TouchableOpacity style={styles.iconBtn}>
             <Ionicons name="camera-outline" size={22} color="#000" />
           </TouchableOpacity>
-
-          <AvatarDropdown mainAvatar="https://randomuser.me/api/portraits/men/75.jpg" />
         </View>
       </View>
 

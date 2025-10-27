@@ -162,22 +162,33 @@ export const getTransactionDetailById = async (walletTransactionId) => {
  * 💳 Nạp tiền vào ví người dùng
  * @param {number} amount - Số tiền cần nạp
  */
+/**
+ * 💳 Nạp tiền vào ví người dùng
+ * @param {number} amount - Số tiền cần nạp
+ */
 export const depositMoney = async (amount) => {
   try {
     const userId = await getUserId();
+    const numericAmount = parseFloat(amount);
+
     if (!userId) throw new Error("Không tìm thấy userId, vui lòng đăng nhập lại.");
+    if (isNaN(numericAmount) || numericAmount < 0.01)
+      throw new Error("Số tiền phải lớn hơn hoặc bằng 0.01");
 
-    const url = `${API_URL}/${userId}/deposit?amount=${amount}`;
-    console.log("🚀 Gọi API depositMoney:", url);
+    const url = `${API_URL}/deposit`;
+    console.log("🚀 Gọi API depositMoney:", url, { userId, price: numericAmount });
 
-    const res = await axios.post(url, null, {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const res = await axios.post(
+      url,
+      { userId, price: numericAmount }, // ✅ đổi 'amount' → 'price'
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
     console.log("💰 Kết quả API depositMoney:", res.data);
-
     return {
       success: true,
       status: res.data?.status,
@@ -186,10 +197,10 @@ export const depositMoney = async (amount) => {
     };
   } catch (error) {
     console.error("❌ depositMoney error:", error.response?.data || error.message);
-
     return {
       success: false,
       message: error.response?.data?.message || "Không thể nạp tiền vào ví",
     };
   }
 };
+

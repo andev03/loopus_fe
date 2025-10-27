@@ -67,6 +67,45 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  // Viền vàng cho avatar MEMBER
+avatarPremium: {
+  borderWidth: 3,
+  borderColor: "#FFD700",
+  borderRadius: 50,
+  padding: 2,
+},
+
+// Badge Premium
+premiumBadge: {
+  backgroundColor: "#FFD700",
+  paddingHorizontal: 8,
+  paddingVertical: 2,
+  borderRadius: 12,
+  marginLeft: 8,
+  flexDirection: "row",
+  alignItems: "center",
+},
+
+premiumBadgeText: {
+  color: "#1F2937",
+  fontSize: 12,
+  fontWeight: "bold",
+},
+
+// Banner Premium đã có
+premiumActiveBanner: {
+  backgroundColor: "#10b981",
+  marginHorizontal: 16,
+  marginTop: 20,
+  marginBottom: 16,
+  borderRadius: 16,
+  padding: 16,
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  borderWidth: 2,
+  borderColor: "#34d399",
+},
 });
 
 export default styles;

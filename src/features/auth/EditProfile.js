@@ -7,17 +7,24 @@ import {
   Alert,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { getUser, saveUser } from "../../services/storageService";
-import { updateUserInformation } from "../../services/authService";
+import { updateUserInformation, updateUserAvatar } from "../../services/authService";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import styles from "./EditProfile.styles";
+import { getAllBanks } from "../../services/bankService";
+import { Picker } from "@react-native-picker/picker"; 
+
 
 export default function EditProfile() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [user, setUser] = useState(null);
 
   const [firstName, setFirstName] = useState("");
@@ -25,32 +32,73 @@ export default function EditProfile() {
   const [email, setEmail] = useState("");
   const [dob, setDob] = useState("");
   const [bio, setBio] = useState("");
+  const [avatar, setAvatar] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [banks, setBanks] = useState([]);
+const [selectedBankId, setSelectedBankId] = useState("");
+const [bankNumber, setBankNumber] = useState("");
+
 
   useEffect(() => {
-    const loadUser = async () => {
+  const loadUserAndBanks = async () => {
+    try {
       const u = await getUser();
       console.log("🧩 User từ storage:", u);
+
       if (u) {
         setUser(u);
-        setFirstName(u.firstName || "");
-        setLastName(u.lastName || "");
+
+        // Nếu backend chỉ trả về fullName thì tách ra
+        const [first, ...lastParts] = (u.fullName || "").split(" ");
+        const last = lastParts.join(" ");
+
+        setFirstName(first || "");
+        setLastName(last || "");
         setEmail(u.email || u.username || "");
-        setDob(u.dob || "");
+        setDob(u.dateOfBirth || "");
         setBio(u.bio || "");
+        setAvatar(u.avatarUrl || "");
+        setSelectedBankId(u.bankId || "");      // 👈 Thêm
+        setBankNumber(u.bankNumber || "");      // 👈 Thêm
       }
-    };
-    loadUser();
-  }, []);
 
-  const handleSave = async () => {
-    if (!firstName || !lastName) {
-      Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin");
-      return;
+      // 🔹 Gọi API lấy danh sách ngân hàng
+      const bankRes = await getAllBanks();
+      if (bankRes?.success) {
+        setBanks(bankRes.data);
+      } else {
+        console.warn("⚠️ Không tải được danh sách ngân hàng:", bankRes?.message);
+      }
+    } catch (err) {
+      console.error("❌ Lỗi load user/bank:", err);
     }
+  };
 
+  loadUserAndBanks();
+}, []);
+
+
+
+ const handleSave = async () => {
+  if (!firstName || !lastName) {
+    Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin");
+    return;
+  }
+
+  // 👇 Kiểm tra nếu người dùng thay đổi hoặc thêm mới thông tin ngân hàng
+  const oldBankId = user?.bankId || "";
+  const oldBankNumber = user?.bankNumber || "";
+
+  const isFirstTimeUpdate = !oldBankId && !oldBankNumber; // lần đầu cập nhật
+  const bankChanged =
+    isFirstTimeUpdate ||
+    selectedBankId !== oldBankId ||
+    bankNumber !== oldBankNumber;
+
+  const saveProfile = async () => {
     setLoading(true);
 
+    const fullName = `${firstName} ${lastName}`.trim();
     const userData = {
       userId: user?.userId,
       firstName,
@@ -58,26 +106,114 @@ export default function EditProfile() {
       email,
       dob,
       bio: bio || "Chưa có giới thiệu",
+      fullName,
+      bankId: selectedBankId || null,
+      bankNumber: bankNumber || null,
     };
 
     console.log("📤 Sending update:", userData);
-
-    const res = await updateUserInformation(userData);
+    const res = await updateUserInformation(userData, user?.token);
     setLoading(false);
 
     if (res.success) {
       Alert.alert("Thành công", "Cập nhật thông tin thành công");
-      await saveUser({ ...user, firstName, lastName, dob, bio });
-      router.back();
+
+      await saveUser({
+        ...user,
+        firstName,
+        lastName,
+        fullName,
+        dob,
+        bio,
+        bankId: selectedBankId || user.bankId || null,
+        bankNumber: bankNumber || user.bankNumber || null,
+      });
+
+      router.push("/(tabs)/account");
     } else {
       console.log("❌ Update profile error:", res);
       Alert.alert("Thất bại", res.message || "Cập nhật thất bại");
     }
   };
 
+  // ⚠️ Nếu người dùng đổi hoặc lần đầu nhập thông tin ngân hàng
+  if (bankChanged) {
+    Alert.alert(
+      "Xác nhận thay đổi",
+      isFirstTimeUpdate
+        ? "Bạn hãy đảm bảo rằng bạn nhập đúng số tài khoản ngân hàng. Chúng tôi sẽ không chịu trách nhiệm cho số tiền bị thất lạc do sai số tài khoản ngân hàng."
+        : "Bạn có chắc muốn thay đổi thông tin ngân hàng không? Chúng tôi sẽ không chịu trách nhiệm cho số tiền bị thất lạc do sai số tài khoản ngân hàng.",
+      [
+        { text: "Hủy", style: "cancel" },
+        { text: "Đồng ý", onPress: saveProfile },
+      ]
+    );
+  } else {
+    // Nếu không đổi ngân hàng → lưu luôn
+    await saveProfile();
+  }
+};
+
+
+ const handlePickAvatar = async () => {
+  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (status !== "granted") {
+    Alert.alert("Quyền truy cập bị từ chối", "Cần cấp quyền truy cập ảnh để đổi avatar.");
+    return;
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    quality: 0.7,
+  });
+
+  if (!result.canceled) {
+    const file = result.assets[0];
+    console.log("🖼️ Chọn ảnh:", file);
+
+    // ✅ hiển thị preview ngay
+    setAvatar(file.uri); 
+    await handleUploadAvatar(file);
+  }
+};
+
+// 📤 Upload avatar lên server
+const handleUploadAvatar = async (file) => {
+  if (!user?.userId) {
+    Alert.alert("Lỗi", "Không xác định được userId.");
+    return;
+  }
+
+  setUploading(true);
+  const res = await updateUserAvatar(
+    user.userId,
+    {
+      uri: file.uri,
+      name: file.fileName || `avatar_${Date.now()}.jpg`,
+      type: file.mimeType || "image/jpeg",
+    },
+    user?.token
+  );
+  setUploading(false);
+
+  if (res.success) {
+    Alert.alert("Thành công", "Cập nhật avatar thành công");
+
+    // ✅ Nếu server trả URL string thì dùng, ngược lại vẫn giữ preview
+    const newAvatarUrl = typeof res.data === "string" ? res.data : file.uri;
+    setAvatar(newAvatarUrl);
+
+    // ✅ Lưu đúng định dạng (string)
+    await saveUser({ ...user, avatarUrl: newAvatarUrl });
+  } else {
+    Alert.alert("Thất bại", res.message || "Cập nhật avatar thất bại");
+  }
+};
+
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header với gradient effect */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={26} color="#fff" />
@@ -87,6 +223,23 @@ export default function EditProfile() {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <View style={styles.avatarContainer}>
+          <TouchableOpacity onPress={handlePickAvatar}>
+            <Image
+              source={{
+                uri: avatar || "https://ui-avatars.com/api/?name=User",
+              }}
+              style={styles.avatar}
+            />
+            {uploading && (
+              <View style={styles.overlay}>
+                <ActivityIndicator color="#fff" size="small" />
+              </View>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.avatarLabel}>Chạm để đổi ảnh đại diện</Text>
+        </View>
+
         <View style={styles.formContainer}>
           {/* Họ */}
           <View style={styles.inputGroup}>
@@ -173,6 +326,46 @@ export default function EditProfile() {
             />
           </View>
 
+          {/* Ngân hàng */}
+<View style={styles.inputGroup}>
+  <View style={styles.labelContainer}>
+    <Ionicons name="card-outline" size={18} color="#10b981" />
+    <Text style={styles.label}>Ngân hàng</Text>
+  </View>
+  <View style={[styles.input, { padding: 0, overflow: "hidden" }]}>
+    <Picker
+      selectedValue={selectedBankId}
+      onValueChange={(value) => setSelectedBankId(value)}
+    >
+      <Picker.Item label="-- Chọn ngân hàng --" value="" />
+      {banks.map((bank) => (
+        <Picker.Item
+          key={bank.bankId}
+          label={bank.bankName}
+          value={bank.bankId}
+        />
+      ))}
+    </Picker>
+  </View>
+</View>
+
+{/* Số tài khoản */}
+<View style={styles.inputGroup}>
+  <View style={styles.labelContainer}>
+    <Ionicons name="cash-outline" size={18} color="#10b981" />
+    <Text style={styles.label}>Số tài khoản</Text>
+  </View>
+  <TextInput
+    style={styles.input}
+    value={bankNumber}
+    onChangeText={setBankNumber}
+    placeholder="Nhập số tài khoản"
+    placeholderTextColor="#9ca3af"
+    keyboardType="numeric"
+  />
+</View>
+
+
           {/* Save Button */}
           <TouchableOpacity 
             onPress={handleSave} 
@@ -194,110 +387,3 @@ export default function EditProfile() {
   );
 }
 
-const styles = {
-  container: {
-    flex: 1,
-    backgroundColor: "#f0fdf4",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: "#10b981",
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: "#10b981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#fff",
-    letterSpacing: 0.5,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  formContainer: {
-    padding: 20,
-    paddingTop: 24,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  labelContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-    gap: 6,
-  },
-  label: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#047857",
-  },
-  input: {
-    backgroundColor: "#fff",
-    borderWidth: 2,
-    borderColor: "#d1fae5",
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    color: "#1f2937",
-    shadowColor: "#10b981",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  inputDisabled: {
-    backgroundColor: "#f3f4f6",
-    borderColor: "#e5e7eb",
-    color: "#6b7280",
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: "top",
-    paddingTop: 14,
-  },
-  dateText: {
-    fontSize: 16,
-    color: "#1f2937",
-  },
-  datePlaceholder: {
-    fontSize: 16,
-    color: "#9ca3af",
-  },
-  button: {
-    backgroundColor: "#10b981",
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 14,
-    alignItems: "center",
-    marginTop: 12,
-    shadowColor: "#10b981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  buttonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 17,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-  },
-};

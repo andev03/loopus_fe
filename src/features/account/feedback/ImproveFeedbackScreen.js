@@ -1,30 +1,74 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   TextInput,
-  Image,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
+import { createFeedback } from "../../../services/feedbackService";
+import { getUserId } from "../../../services/storageService";
 
 export default function ImproveFeedbackScreen() {
   const [description, setDescription] = useState("");
-  const [image, setImage] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [userId, setUserId] = useState(null);
 
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.7,
-    });
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
+  useEffect(() => {
+    const fetchUserId = async () => {
+      const id = await getUserId();
+      if (id) {
+        setUserId(id);
+        console.log("👤 [FEEDBACK] Lấy userId:", id);
+      } else {
+        Alert.alert("Lỗi", "Không tìm thấy thông tin người dùng");
+        router.replace("/(tabs)/account");
+      }
+    };
+    fetchUserId();
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!description.trim()) {
+      Alert.alert("Thiếu nội dung", "Vui lòng nhập góp ý của bạn.");
+      return;
+    }
+    if (!userId) {
+      Alert.alert("Lỗi", "Không tìm thấy thông tin người dùng.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // 🟢 Gửi feedback với type="suggestion"
+      await createFeedback(userId, "suggestion", description);
+      Alert.alert("Cảm ơn bạn!", "Góp ý của bạn đã được ghi nhận.");
+      setDescription("");
+      router.replace("/(tabs)/account");
+    } catch (err) {
+      console.error("❌ [FEEDBACK] Lỗi gửi:", err);
+      Alert.alert("Lỗi", "Không thể gửi góp ý. Vui lòng thử lại sau.");
+    } finally {
+      setLoading(false);
     }
   };
+
+  if (!userId) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ActivityIndicator
+          size="large"
+          color="#2ECC71"
+          style={{ flex: 1, justifyContent: "center" }}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -40,29 +84,31 @@ export default function ImproveFeedbackScreen() {
       {/* Nội dung */}
       <View style={styles.content}>
         <Text style={styles.desc}>
-          Đề xuất thay đổi, cải thiện tính năng hoặc dịch vụ
+          Chia sẻ ý tưởng hoặc đề xuất giúp Loopus trở nên tốt hơn.
         </Text>
 
         <TextInput
           style={styles.input}
-          placeholder="Mô tả chi tiết"
+          placeholder="Mô tả chi tiết góp ý của bạn..."
           multiline
           maxLength={500}
+          numberOfLines={4}
           value={description}
           onChangeText={setDescription}
+          editable={!loading}
         />
         <Text style={styles.counter}>{description.length}/500</Text>
 
-        <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
-          {image ? (
-            <Image source={{ uri: image }} style={styles.preview} />
+        <TouchableOpacity
+          style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+          onPress={handleSubmit}
+          disabled={loading || !description.trim()}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={{ color: "#2ECC71" }}>+ Thêm ảnh</Text>
+            <Text style={styles.submitText}>Gửi góp ý</Text>
           )}
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.submitBtn} onPress={() => console.log("Send improve feedback")}>
-          <Text style={styles.submitText}>Gửi</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -85,8 +131,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#fff",
   },
-  content: { flex: 1, padding: 20, backgroundColor: "#fff" },
-  desc: { fontSize: 14, marginBottom: 12, color: "#333" },
+  content: { flex: 1, padding: 20 },
+  desc: {
+    fontSize: 14,
+    marginBottom: 12,
+    color: "#333",
+    lineHeight: 20,
+  },
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
@@ -94,23 +145,28 @@ const styles = StyleSheet.create({
     padding: 12,
     height: 120,
     textAlignVertical: "top",
+    backgroundColor: "#fff",
+    fontSize: 16,
   },
-  counter: { alignSelf: "flex-end", marginTop: 4, color: "#666" },
-  imagePicker: {
-    marginTop: 20,
-    borderWidth: 1,
-    borderColor: "#2ECC71",
-    borderRadius: 8,
-    padding: 16,
-    alignItems: "center",
+  counter: {
+    alignSelf: "flex-end",
+    marginTop: 4,
+    marginBottom: 20,
+    color: "#666",
+    fontSize: 12,
   },
-  preview: { width: 100, height: 100, borderRadius: 8 },
   submitBtn: {
     backgroundColor: "#2ECC71",
-    marginTop: 30,
     paddingVertical: 14,
     borderRadius: 25,
     alignItems: "center",
   },
-  submitText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  submitBtnDisabled: {
+    backgroundColor: "#ccc",
+  },
+  submitText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
 });

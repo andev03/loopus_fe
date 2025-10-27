@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,10 +20,40 @@ import { findUserByEmail } from "../../../services/authService";
 function CreateGroupScreen() {
   const [groupName, setGroupName] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
-  const [contacts, setContacts] = useState([]); // danh sách member tìm được
+  const [contacts, setContacts] = useState([]);
   const [searchEmail, setSearchEmail] = useState("");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [userGroups, setUserGroups] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Toggle chọn thành viên
+  // Load user và nhóm
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const user = await getUser();
+        setCurrentUser(user);
+
+        if (user?.userId) {
+          const res = await groupService.getGroups(user.userId);
+          if (res.success && res.data?.data) {
+            const allGroups = res.data.data;
+            const createdGroups = allGroups.filter(
+              (g) => g.createdBy === user.userId
+            );
+            setUserGroups(createdGroups);
+          }
+        }
+      } catch (err) {
+        console.error("Lỗi load dữ liệu:", err);
+        Alert.alert("Lỗi", "Không thể tải dữ liệu nhóm");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
   const toggleSelect = (id) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -32,7 +63,6 @@ function CreateGroupScreen() {
   const handleAddByEmail = async () => {
     if (!searchEmail) return;
 
-    const currentUser = await getUser(); // lấy user hiện tại
     if (currentUser?.username === searchEmail.trim()) {
       Alert.alert("Thông báo", "Không thể tự thêm chính mình");
       return;
@@ -52,7 +82,6 @@ function CreateGroupScreen() {
             name: res.name,
             email: res.email,
             avatar: res.avatar,
-            
           },
         ]);
         Alert.alert("Thông báo", "Đã thêm thành viên");
@@ -84,34 +113,85 @@ function CreateGroupScreen() {
   };
 
   const handleCreateGroup = async () => {
-    const user = await getUser();
-    if (!user?.userId) {
-      Alert.alert("Lỗi", "Không tìm thấy userId");
+    if (!currentUser) {
+      Alert.alert("Lỗi", "Không tìm thấy thông tin người dùng");
       return;
     }
 
-    // thêm cả người tạo vào danh sách thành viên
-    const userMemberIds = [...selectedIds, user.userId];
+    // === KIỂM TRA GIỚI HẠN SỐ NHÓM CHO USER THƯỜNG ===
+    if (currentUser.role === "USER" && userGroups.length >= 2) {
+      Alert.alert(
+        "Giới hạn tạo nhóm",
+        "Bạn chỉ được tạo tối đa 2 nhóm. Nâng cấp Premium để tạo không giới hạn!",
+        [
+          { text: "Hủy", style: "cancel" },
+          {
+            text: "Nâng cấp",
+            onPress: () => router.push("account/premium"),
+          },
+        ]
+      );
+      return;
+    }
+
+    // === KIỂM TRA GIỚI HẠN THÀNH VIÊN TRONG NHÓM ===
+    if (currentUser.role === "USER") {
+      const totalMembers = selectedIds.length + 1; // +1 là người tạo
+      if (totalMembers > 3) {
+        Alert.alert(
+          "Giới hạn thành viên",
+          "Bạn chỉ được tạo nhóm tối đa 3 người. Nâng cấp Premium để thêm nhiều hơn!",
+          [
+            { text: "Hủy", style: "cancel" },
+            {
+              text: "Nâng cấp",
+              onPress: () => router.push("account/premium"),
+            },
+          ]
+        );
+        return;
+      }
+    }
+
+    if (!selectedIds.length) {
+      Alert.alert("Thông báo", "Vui lòng chọn ít nhất 1 thành viên");
+      return;
+    }
+
+    const userMemberIds = [...selectedIds, currentUser.userId];
 
     const payload = {
       name: groupName || "Nhóm mới",
       description: "Group được tạo từ app",
-      createdBy: user.userId,
+      createdBy: currentUser.userId,
       avatarUrl: "https://yourcdn.com/default-avatar.jpg",
       userMemberIds,
     };
 
-    console.log("📦 Payload gửi lên:", payload);
-
-    const res = await groupService.createGroup(payload);
-
-    if (res?.status === 200) {
-      Alert.alert("Thành công", "Tạo nhóm thành công!");
-      router.replace("/chat");
-    } else {
-      Alert.alert("Thất bại", res?.message || "Tạo nhóm thất bại");
+    try {
+      const res = await groupService.createGroup(payload);
+      if (res?.status === 200) {
+        Alert.alert("Thành công", "Tạo nhóm thành công!", [
+          { text: "OK", onPress: () => router.replace("/chat") },
+        ]);
+      } else {
+        Alert.alert("Thất bại", res?.message || "Tạo nhóm thất bại");
+      }
+    } catch (err) {
+      Alert.alert("Lỗi", "Không thể tạo nhóm");
     }
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView
+        style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+      >
+        <ActivityIndicator size="large" color="#4CAF50" />
+        <Text style={{ marginTop: 10 }}>Đang tải dữ liệu...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -120,7 +200,14 @@ function CreateGroupScreen() {
         <TouchableOpacity onPress={() => router.replace("/chat")}>
           <Ionicons name="close" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Nhóm mới</Text>
+        <View>
+          <Text style={styles.headerTitle}>Nhóm mới</Text>
+          <Text style={{ color: "#fff", fontSize: 12, textAlign: "center" }}>
+            {currentUser?.role === "USER"
+              ? `Đã tạo: ${userGroups.length}/2 nhóm`
+              : "Thành viên Premium"}
+          </Text>
+        </View>
       </View>
 
       {/* Nhập tên nhóm */}
@@ -149,6 +236,14 @@ function CreateGroupScreen() {
         <TouchableOpacity onPress={handleAddByEmail}>
           <Ionicons name="add-circle-outline" size={24} color="#4CAF50" />
         </TouchableOpacity>
+      </View>
+
+      <View style={styles.counterContainer}>
+        <Text style={styles.counterText}>
+          {currentUser?.role === "USER"
+            ? `Đã chọn: ${selectedIds.length}/2 thành viên (tối đa 3 người)`
+            : `Đã chọn: ${selectedIds.length} thành viên`}
+        </Text>
       </View>
 
       {/* Danh sách contact */}

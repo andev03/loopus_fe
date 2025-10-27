@@ -66,4 +66,25 @@ export const albumService = {
       return { success: false, error: error.response?.data };
     }
   },
+
+  // 🟢 Get albums by groupId
+  getAlbumsByGroup: async (groupId) => {
+    try {
+      const user = await getUser();
+      const token = user?.token;
+
+      const res = await axios.get(`${API_BASE_URL}/${groupId}`, {
+        headers: {
+          Accept: "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
+
+      console.log("✅ Lấy album theo group thành công:", res.data);
+      return { success: true, data: res.data };
+    } catch (error) {
+      console.error("❌ Lỗi lấy album:", error.response?.data || error.message);
+      return { success: false, error: error.response?.data };
+    }
+  },
 };

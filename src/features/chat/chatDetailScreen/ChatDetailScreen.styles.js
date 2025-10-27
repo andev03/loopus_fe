@@ -417,6 +417,21 @@ participantName: {
   color: "#2C3E50",
   fontWeight: "500",
 },
+menuContainer: {
+  position: 'absolute',
+  bottom: 60,
+  left: 10,
+  right: 10,
+  backgroundColor: '#fff',
+  borderRadius: 12,
+  padding: 10,
+  elevation: 5,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.25,
+  shadowRadius: 4,
+  zIndex: 1000,
+},
 });
 
 export default styles;

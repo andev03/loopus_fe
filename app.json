@@ -4,22 +4,30 @@
     "slug": "loopus",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
-    "assetBundlePatterns": [
-      "**/*"
-    ],
-    "ios": {
-      "supportsTablet": true
+    "userInterfaceStyl
+    "assetBundlePatterns": ["**/*"],
+    "icon": "./assets/loopus.png",
+    "splash": {
+      "image": "./assets/loopus.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
     },
     "android": {
-     
-      "package": "com.vothanhlong34.loopus"
+      "package": "com.loopus.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/loopus.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "ios": {
+      "supportsTablet": true,
+      "icon": "./assets/loopus.png"
     },
     "web": {
+      "favicon": "./assets/loopus.png"
     },
-    "plugins": [
-      "expo-router"
-    ],
+    "plugins": ["expo-router"],
+
     "extra": {
       "EXPO_PUBLIC_GEMINI_API_KEY": "",
       "EXPO_PUBLIC_API_GROUP": "",

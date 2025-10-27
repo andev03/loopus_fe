@@ -1,122 +1,101 @@
-import axios from "axios";
-import { getUser, getUserId } from "../services/storageService";
+import { api } from './http'
+import { toRNFile } from '../utils/utils'
 
-const API_BASE_URL = "https://loopus.nguyenhoangan.site/api/stories";
+export async function createStory({ request = {}, file }) {
+  const { userId, caption, visibilityType, albumId, groupId } = request
 
-export const storyService = {
-  // 🟢 Tạo story
-  createStory: async (file, caption = "", visibilityType = "followers", albumId = null) => {
-    try {
-      const userId = await getUserId();
-      const user = await getUser();
-      const token = user?.token;
+  const rnFile = toRNFile(file)
+  if (!rnFile) throw new Error('Missing file')
 
-      if (!userId) throw new Error("Thiếu userId, không thể tạo story.");
+  const fd = new FormData()
 
-      const formData = new FormData();
+  // Append file
+  fd.append('file', {
+    uri: rnFile.uri,
+    name: rnFile.name,
+    type: rnFile.type,
+  })
 
-      formData.append("file", {
-        uri: file.uri.startsWith("file://") ? file.uri : `file://${file.uri}`,
-        type: file.type || "image/jpeg",
-        name: file.name || "story.jpg",
-      });
+  // Append request as JSON blob
+  const requestPayload = {
+    userId,
+    caption: caption || '',
+    visibilityType,
+  }
+  if (albumId) requestPayload.albumId = albumId
+  if (groupId) requestPayload.groupId = groupId
 
-      const requestBody = { userId, caption, visibilityType, albumId };
-      formData.append("request", JSON.stringify(requestBody));
+  // Append as string with type
+  fd.append('request', {
+    string: JSON.stringify(requestPayload),
+    type: 'application/json'
+  })
 
-      console.log("📤 Gửi formData:", requestBody);
+  console.log("🧩 Upload payload:", rnFile, requestPayload);
 
-      const res = await axios.post(API_BASE_URL, formData, {
-        headers: {
-          Accept: "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-        transformRequest: (data) => data, // giữ nguyên formData
-      });
 
-      console.log("✅ [createStory] Thành công:", res.data);
-      return res.data;
-    } catch (err) {
-      console.error("❌ [createStory] Gặp lỗi:", err.message);
-      if (err.response)
-        console.log("📨 Server trả:", err.response.status, err.response.data);
-      throw err;
-    }
-  },
+  const res = await api.post('/api/stories', fd, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+      'Accept': 'application/json',
+    },
 
-  // 🔵 Lấy danh sách story feed của user
-  getFeed: async (userId) => {
-    try {
-      const user = await getUser();
-      const token = user?.token;
+  });
 
-      const res = await axios.get(`${API_BASE_URL}/${userId}/feed`, {
-        headers: {
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-      });
+  return res.data
+}
 
-      return res.data;
-    } catch (err) {
-      console.error("❌ getFeed error:", err);
-      throw err.response?.data || err;
-    }
-  },
+// Detail
+export async function getStoryDetail(storyId) {
+  const res = await api.get(`/api/stories/${storyId}/detail`)
+  return res.data
+}
 
-  // 🟣 Lấy danh sách story trong 1 album
-  getStoriesByAlbum: async (albumId) => {
-    try {
-      const user = await getUser();
-      const token = user?.token;
+// Album stories by albumId
+export async function getAlbumStories(albumId) {
+  const res = await api.get(`/api/stories/${albumId}`)
+  return res.data
+}
 
-      const res = await axios.get(`${API_BASE_URL}/${albumId}`, {
-        headers: {
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-      });
+// Delete story
+export async function deleteStory(storyId) {
+  const res = await api.delete(`/api/stories/${storyId}`)
+  return res.data
+}
 
-      return res.data;
-    } catch (err) {
-      console.error("❌ getStoriesByAlbum error:", err);
-      throw err.response?.data || err;
-    }
-  },
+// Reactions
+export async function listReactions(storyId) {
+  const res = await api.get(`/api/stories/${storyId}/reactions`)
+  return res.data
+}
+export async function addReaction({ storyId, userId, emoji }) {
+  const res = await api.post(`/api/stories/reaction`, { storyId, userId, emoji })
+  return res.data
+}
+export async function removeReaction({ storyId, reactionId }) {
+  const res = await api.delete(`/api/stories/${storyId}/${reactionId}/reactions`)
+  return res.data
+}
 
-  // 🟢 Lấy story của 1 user cụ thể
-  getStoriesByUser: async (userId) => {
-    try {
-      const user = await getUser();
-      const token = user?.token;
-
-      const res = await axios.get(`${API_BASE_URL}/user/${userId}`, {
-        headers: {
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-      });
-
-      return res.data;
-    } catch (err) {
-      console.error("❌ getStoriesByUser error:", err);
-      throw err.response?.data || err;
-    }
-  },
-
-  // 🔴 Xóa 1 story
-  deleteStory: async (storyId) => {
-    try {
-      const user = await getUser();
-      const token = user?.token;
-
-      const res = await axios.delete(`${API_BASE_URL}/${storyId}`, {
-        headers: {
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-      });
-
-      return res.data;
-    } catch (err) {
-      console.error("❌ deleteStory error:", err);
-      throw err.response?.data || err;
-    }
-  },
-};
+// Comments
+export async function listComments(storyId) {
+  const res = await api.get(`/api/stories/${storyId}/comments`)
+  return res.data
+}
+export async function addComment(storyId, userId, content) {
+  const res = await api.post(`/api/stories/${storyId}/comments`, {
+    storyId,
+    userId,
+    content,
+  })
+  return res.data
+}
+export async function updateComment(commentId, text) {
+  console.log("🧩 Updating comment:", commentId, text);
+  const res = await api.put(`/api/stories/comment/${commentId}`, { text })
+  return res.data
+}
+export async function deleteComment(storyId, commentId) {
+  const res = await api.delete(`/api/stories/${storyId}/comments/${commentId}`)
+  return res.data
+}
