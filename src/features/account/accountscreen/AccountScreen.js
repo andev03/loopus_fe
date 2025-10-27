@@ -114,6 +114,7 @@ export default function AccountScreen() {
           </View>
         </View>
 
+
         {/* Premium Banner */}
         {user?.role === "MEMBER" ? (
           <View style={styles.premiumActiveBanner}>
@@ -196,6 +197,7 @@ export default function AccountScreen() {
             </View>
           </TouchableOpacity>
         )}
+
 
         {/* Menu */}
         <View style={styles.menu}>

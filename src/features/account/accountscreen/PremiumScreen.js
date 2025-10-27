@@ -80,6 +80,7 @@ export default function PremiumScreen() {
 
         {/* Content Container */}
         <View style={{ padding: 20 }}>
+
          {/* Features Card */}
 <View
   style={{
@@ -178,6 +179,7 @@ export default function PremiumScreen() {
     </View>
   </View>
 </View>
+
 
           {/* Price Card */}
           <View

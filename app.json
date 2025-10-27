@@ -4,7 +4,7 @@
     "slug": "loopus",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyl
     "assetBundlePatterns": ["**/*"],
     "icon": "./assets/loopus.png",
     "splash": {
@@ -27,6 +27,7 @@
       "favicon": "./assets/loopus.png"
     },
     "plugins": ["expo-router"],
+
     "extra": {
       "EXPO_PUBLIC_GEMINI_API_KEY": "",
       "EXPO_PUBLIC_API_GROUP": "",
