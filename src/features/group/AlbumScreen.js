@@ -200,7 +200,7 @@ export default function AlbumScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: "#f8fdf9" }, // Nền xanh nhạt nhẹ
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -208,10 +208,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderColor: "#eee",
+    borderColor: "#e8f5e9", // Đường viền xanh nhạt
+    backgroundColor: "#b4f1d3", // Nền header xanh nhạt
   },
-  headerTitle: { fontSize: 18, fontWeight: "bold" },
-  headerSubtitle: { fontSize: 12, color: "#666", marginTop: 2 },
+  headerTitle: { fontSize: 18, fontWeight: "bold", color: "#1a5f3a" }, // Văn bản xanh đậm
+  headerSubtitle: { fontSize: 12, color: "#2d5f3f", marginTop: 2 }, // Văn bản phụ xanh lá nhạt
   headerCenter: { flex: 1, alignItems: "center" },
   imageWrapper: {
     flex: 1 / 3,
@@ -222,14 +223,14 @@ const styles = StyleSheet.create({
     width: "100%",
     aspectRatio: 1,
     borderRadius: 8,
-    backgroundColor: '#f0f0f0', // ✅ Placeholder color
+    backgroundColor: "#e0f7e9", // Placeholder màu xanh nhạt
   },
   captionBadge: {
     position: 'absolute',
     bottom: 4,
     left: 4,
     right: 4,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(26, 95, 58, 0.6)', // Xanh đậm với độ trong suốt
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 4,
@@ -250,13 +251,13 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   emptyText: {
-    color: "#666",
+    color: "#2d5f3f", // Xanh lá nhạt
     fontSize: 16,
     marginTop: 16,
   },
   addFirstBtn: {
     marginTop: 20,
-    backgroundColor: '#2ECC71',
+    backgroundColor: '#2ECC71', // Nút xanh lá nổi bật
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,

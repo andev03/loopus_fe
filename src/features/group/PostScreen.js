@@ -137,8 +137,6 @@ export default function PostScreen() {
           <TouchableOpacity style={styles.iconBtn}>
             <Ionicons name="camera-outline" size={22} color="#000" />
           </TouchableOpacity>
-
-          <AvatarDropdown mainAvatar="https://randomuser.me/api/portraits/men/75.jpg" />
         </View>
       </View>
 

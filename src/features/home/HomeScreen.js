@@ -564,43 +564,58 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           style={styles.dealRow}
         >
-          <TouchableOpacity style={styles.travelCard}>
-            <Image
-              source={{ uri: "https://picsum.photos/300/200?random=11" }}
-              style={styles.travelImage}
-            />
-            <View style={styles.overlay}>
-              <Text style={styles.overlayText}>Xem ngay</Text>
-            </View>
-          </TouchableOpacity>
+          <ScrollView
+  horizontal
+  showsHorizontalScrollIndicator={false}
+  style={styles.dealRow}
+>
+  <TouchableOpacity style={styles.travelCard}>
+    <Image
+      source={require('../../assets/images/dulich1.jpg')}
+      style={styles.travelImage}
+    />
+    <View style={styles.overlay}>
+      <Text style={styles.overlayText}>Xem ngay</Text>
+    </View>
+  </TouchableOpacity>
 
-          <TouchableOpacity style={styles.travelCard}>
-            <Image
-              source={{ uri: "https://picsum.photos/300/200?random=12" }}
-              style={styles.travelImage}
-            />
-            <View style={styles.overlay}>
-              <Text style={styles.overlayText}>Xem ngay</Text>
-            </View>
-          </TouchableOpacity>
+  <TouchableOpacity style={styles.travelCard}>
+    <Image
+      source={require('../../assets/images/dulich2.jpg')}
+      style={styles.travelImage}
+    />
+    <View style={styles.overlay}>
+      <Text style={styles.overlayText}>Xem ngay</Text>
+    </View>
+  </TouchableOpacity>
+</ScrollView>
         </ScrollView>
 
-        {/* Deal đỉnh */}
         <Text style={styles.sectionTitle}>Deal đỉnh</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.dealRow}
-        >
-          {[21, 22, 23].map((n) => (
-            <TouchableOpacity key={n} style={styles.dealCard}>
-              <Image
-                source={{ uri: `https://picsum.photos/200/150?random=${n}` }}
-                style={styles.dealImageFull}
-              />
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+<ScrollView
+  horizontal
+  showsHorizontalScrollIndicator={false}
+  style={styles.dealRow}
+>
+  <TouchableOpacity key="dealh1" style={styles.dealCard}>
+    <Image
+      source={require('../../assets/images/dealdinh1.jpg')}
+      style={styles.dealImageFull}
+    />
+  </TouchableOpacity>
+  <TouchableOpacity key="dealh2" style={styles.dealCard}>
+    <Image
+      source={require('../../assets/images/dealdinh2.jpg')}
+      style={styles.dealImageFull}
+    />
+  </TouchableOpacity>
+  <TouchableOpacity key="dealh3" style={styles.dealCard}>
+    <Image
+      source={require('../../assets/images/dealdinh3.jpg')}
+      style={styles.dealImageFull}
+    />
+  </TouchableOpacity>
+</ScrollView>
       </ScrollView>
 
       {/* FAB Chatbot - luôn hiện, nhưng USER bị chặn */}
