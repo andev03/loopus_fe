@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "LOOPUS",
+    "slug": "loopus",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyl
+    "assetBundlePatterns": ["**/*"],
+    "icon": "./assets/loopus.png",
+    "splash": {
+      "image": "./assets/loopus.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "android": {
+      "package": "com.loopus.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/loopus.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "ios": {
+      "supportsTablet": true,
+      "icon": "./assets/loopus.png"
+    },
+    "web": {
+      "favicon": "./assets/loopus.png"
+    },
+    "plugins": ["expo-router"],
+
+    "extra": {
+      "EXPO_PUBLIC_GEMINI_API_KEY": "",
+      "EXPO_PUBLIC_API_GROUP": "",
+      "router": {},
+      "eas": {
+        "projectId": "f6cce6c3-cc6b-4572-b221-4bcaa163542b"
+      }
+    },
+    "scheme": "loopus"
+  }
+}
